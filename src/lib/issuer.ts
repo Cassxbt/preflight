@@ -16,22 +16,29 @@ const pages = new Map<string, { html: string; fetchedAt: string }>();
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 
-export function pageText(html: string): string {
+// Comments, scripts, styles, templates and elements marked hidden are not what a visitor reads.
+function visibleMarkup(html: string): string {
   return html
-    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(script|style|template|noscript)\b[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<(\w+)\b[^>]*\shidden(?=[\s=>/])[^>]*>[\s\S]*?<\/\1>/gi, " ");
+}
+
+export function pageText(html: string): string {
+  return visibleMarkup(html)
     .replace(/<[^>]+>/g, " ")
     .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, code: string) => {
       if (code[0] !== "#") return ENTITIES[code.toLowerCase()] ?? match;
       const n = code[1] === "x" || code[1] === "X" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
-      return String.fromCodePoint(n);
+      return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : match;
     })
     .replace(/\s+/g, " ")
     .trim();
 }
 
-// The issuer pages link each token's mint through a Solscan token URL.
+// The issuer pages link each token's mint through a Solscan token URL in an anchor's href.
 export function linkedMints(html: string): string[] {
-  const found = html.matchAll(/solscan\.io\/token\/([1-9A-HJ-NP-Za-km-z]{32,44})/g);
+  const found = visibleMarkup(html).matchAll(/<a\b[^>]*\shref="https:\/\/solscan\.io\/token\/([1-9A-HJ-NP-Za-km-z]{32,44})"/gi);
   return [...new Set([...found].map((m) => m[1]))];
 }
 

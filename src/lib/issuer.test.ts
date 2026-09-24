@@ -31,9 +31,24 @@ describe.each(entries)("$symbol capture", (entry) => {
   });
 });
 
+describe("inspectIssuerPage against a page that only pretends to agree", () => {
+  const entry = { mint: "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh", statement: "swapped before 12 March 2027" };
+
+  it("ignores the mint when it survives only in a comment or script", () => {
+    const html = `<!-- <a href="https://solscan.io/token/${entry.mint}"> --><script>"https://solscan.io/token/${entry.mint}"</script><p>swapped before 12 March 2027</p>`;
+    expect(inspectIssuerPage(html, entry)).toMatchObject({ mintLinked: false, statementPresent: true });
+  });
+
+  it("ignores the statement when it survives only in hidden markup", () => {
+    const html = `<a href="https://solscan.io/token/${entry.mint}">x</a><div hidden>swapped before 12 March 2027</div><p>Deadline extended</p>`;
+    expect(inspectIssuerPage(html, entry)).toMatchObject({ mintLinked: true, statementPresent: false });
+  });
+});
+
 describe("pageText", () => {
   it("drops markup and scripts and decodes entities", () => {
     expect(pageText("<p>swapped&nbsp;into <b>$SPCXx</b> &amp; more</p><script>var x = 'hidden'</script>")).toBe("swapped into $SPCXx & more");
     expect(pageText("it&#39;s &#x24;5")).toBe("it's $5");
+    expect(pageText("a &#99999999; b")).toBe("a &#99999999; b");
   });
 });
