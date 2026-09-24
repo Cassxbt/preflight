@@ -285,7 +285,7 @@ describe("thresholds", () => {
     expect(r.metrics.worstPremiumPct).toBeCloseTo(6.61, 2);
     expect(r.status).toBe("DISCLOSE");
     expect(r.reasons[0]).toMatchObject({ code: "ABOVE_MARK" });
-    expect(r.reasons[0].message).toContain("allows a fill at up to $1110.53");
+    expect(r.reasons[0].message).toContain("allows a fill at up to $1,110.53");
   });
 
   it("stays CLEAR when the worst-case fill is within the policy", () => {

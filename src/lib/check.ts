@@ -1,4 +1,5 @@
 import { ABOVE_MARK_THRESHOLD_PCT, THIN_ROUTE_THRESHOLD_PCT } from "./constants";
+import { fmtDate, fmtUsd } from "./format";
 
 export type Status = "CLEAR" | "DISCLOSE" | "HOLD";
 
@@ -116,7 +117,7 @@ export function runCheck(input: CheckInput): CheckResult {
 
   if (input.retired) {
     const r = input.retired;
-    hold("ISSUER_WINDOW_CLOSED", `The issuer-defined ${r.symbol} conversion window closed on ${r.deadline}.`, {
+    hold("ISSUER_WINDOW_CLOSED", `The issuer-defined ${r.symbol} conversion window closed on ${fmtDate(r.deadline)}.`, {
       issuerUrl: r.issuerUrl,
       statement: r.statement,
       capturedAt: r.capturedAt,
@@ -132,7 +133,7 @@ export function runCheck(input: CheckInput): CheckResult {
       hold("SOURCE_UNAVAILABLE", `Issuer page unavailable: ${input.issuer.error}`, { source: "issuer", issuerUrl: lifecycle.issuerUrl });
       notEvaluated.push("EVIDENCE_CONFLICT");
     } else if (Date.parse(input.now) - Date.parse(input.issuer.value.fetchedAt) > MAX_EVIDENCE_AGE_MS) {
-      hold("SOURCE_UNAVAILABLE", `Issuer evidence is older than 24 hours (fetched ${input.issuer.value.fetchedAt}).`, { source: "issuer" });
+      hold("SOURCE_UNAVAILABLE", `Issuer evidence is older than 24 hours (fetched ${fmtDate(input.issuer.value.fetchedAt)}).`, { source: "issuer" });
       notEvaluated.push("EVIDENCE_CONFLICT");
     } else {
       const e = input.issuer.value;
@@ -201,7 +202,7 @@ export function runCheck(input: CheckInput): CheckResult {
       if (listedPremiumPct > ABOVE_MARK_THRESHOLD_PCT) {
         disclose(
           "ABOVE_MARK",
-          `PreStocks lists this token at $${listing.tokenPrice.toFixed(2)}, ${listedPremiumPct.toFixed(1)}% above its own mark of $${listing.markPrice.toFixed(2)} (policy threshold ${ABOVE_MARK_THRESHOLD_PCT}%). Your price at your size is checked when you prepare an order.`,
+          `PreStocks lists this token at ${fmtUsd(listing.tokenPrice)}, ${listedPremiumPct.toFixed(1)}% above its own mark of ${fmtUsd(listing.markPrice)} (policy threshold ${ABOVE_MARK_THRESHOLD_PCT}%). Your price at your size is checked when you prepare an order.`,
           { basis: "catalog", markPrice: listing.markPrice, tokenPrice: listing.tokenPrice, catalogRetrievedAt: listing.retrievedAt },
         );
       }
@@ -249,18 +250,18 @@ export function runCheck(input: CheckInput): CheckResult {
         const evidence = { markPrice: mark, executablePrice: price, worstPrice, catalogRetrievedAt: input.catalog.value.retrievedAt };
         const worstText =
           worstPrice !== null && worstPremiumPct !== null
-            ? ` If the swap fills at its minimum you pay up to $${worstPrice.toFixed(2)} (${worstPremiumPct.toFixed(1)}% above).`
+            ? ` If the swap fills at its minimum you pay up to ${fmtUsd(worstPrice)} (${worstPremiumPct.toFixed(1)}% above).`
             : "";
         if (premiumPct > ABOVE_MARK_THRESHOLD_PCT) {
           disclose(
             "ABOVE_MARK",
-            `You pay $${price.toFixed(2)} per token, ${premiumPct.toFixed(1)}% above the issuer mark of $${mark.toFixed(2)} (policy threshold ${ABOVE_MARK_THRESHOLD_PCT}%).${worstText}`,
+            `You pay ${fmtUsd(price)} per token, ${premiumPct.toFixed(1)}% above the issuer mark of ${fmtUsd(mark)} (policy threshold ${ABOVE_MARK_THRESHOLD_PCT}%).${worstText}`,
             evidence,
           );
         } else if (worstPremiumPct !== null && worstPremiumPct > ABOVE_MARK_THRESHOLD_PCT) {
           disclose(
             "ABOVE_MARK",
-            `Expected $${price.toFixed(2)} per token (${premiumPct.toFixed(1)}% vs the issuer mark of $${mark.toFixed(2)}), but the route allows a fill at up to $${worstPrice!.toFixed(2)}, ${worstPremiumPct.toFixed(1)}% above the mark (policy threshold ${ABOVE_MARK_THRESHOLD_PCT}%).`,
+            `Expected ${fmtUsd(price)} per token (${premiumPct.toFixed(1)}% vs the issuer mark of ${fmtUsd(mark)}), but the route allows a fill at up to ${fmtUsd(worstPrice!)}, ${worstPremiumPct.toFixed(1)}% above the mark (policy threshold ${ABOVE_MARK_THRESHOLD_PCT}%).`,
             evidence,
           );
         }
