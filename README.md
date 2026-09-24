@@ -11,6 +11,7 @@ A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits betwee
 [![Jupiter](https://img.shields.io/badge/Jupiter-Swap%20V2%20Meta-111)](https://dev.jup.ag)
 [![Solana](https://img.shields.io/badge/Solana-mainnet-9945FF)](https://solscan.io/tx/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000)](https://nextjs.org)
+[![License: MIT](https://img.shields.io/badge/license-MIT-111)](LICENSE)
 
 [Live app](https://preflight-weld.vercel.app/app) · [Judge it in 90 seconds](#verify-it-yourself) · [Mainnet receipt](https://preflight-weld.vercel.app/r/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV)
 
@@ -243,6 +244,6 @@ npm test
 
 <div align="center">
 
-Built by **cassxbt** for **Stocklana** (Solana Foundation) · Main track and PreStocks track
+Built by **cassxbt** for **Stocklana** (Solana Foundation) · Main track and PreStocks track · [MIT](LICENSE)
 
 </div>
