@@ -11,7 +11,7 @@ export function Mark({ className = "" }: { className?: string }) {
   );
 }
 
-export function SiteHeader({ links = true }: { links?: boolean }) {
+export function SiteHeader({ links = true, action }: { links?: boolean; action?: React.ReactNode }) {
   return (
     <div className="pointer-events-none sticky top-4 z-40 flex justify-center px-4">
       <header className="pointer-events-auto flex items-center gap-2 rounded-full bg-background/70 py-1.5 pr-1.5 pl-4 shadow-[0_8px_32px_rgb(0_0_0/0.45)] ring-1 ring-white/10 backdrop-blur-xl">
@@ -37,9 +37,11 @@ export function SiteHeader({ links = true }: { links?: boolean }) {
           <span className="h-1.5 w-1.5 rounded-full bg-clear shadow-[0_0_8px_var(--clear)]" />
           mainnet
         </span>
-        <Link href="/app" className="rounded-full bg-foreground px-4 py-1.5 text-sm font-semibold text-background transition-transform duration-500 ease-spring active:scale-[0.97]">
-          Launch app
-        </Link>
+        {action ?? (
+          <Link href="/app" className="rounded-full bg-foreground px-4 py-1.5 text-sm font-semibold text-background transition-transform duration-500 ease-spring active:scale-[0.97]">
+            Launch app
+          </Link>
+        )}
       </header>
     </div>
   );

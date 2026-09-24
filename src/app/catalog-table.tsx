@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { signedPct, utc } from "./ui";
+import { fmtDate, fmtUsd } from "@/lib/format";
+import { signedPct } from "./ui";
 
 export type CatalogView = {
   retrievedAt: string;
@@ -16,53 +17,66 @@ export type CatalogView = {
   retired: { symbol: string; mint: string; deadline: string }[];
 };
 
-export function CatalogTable({ catalog, selected, onPick }: { catalog: CatalogView; selected: string; onPick: (mint: string) => void }) {
+export type LiveQuote = { price: number; move: "up" | "down" | null };
+
+type Props = { catalog: CatalogView; selected: string; onPick: (mint: string) => void; live: Record<string, LiveQuote>; liveAt: string | null };
+
+export function CatalogTable({ catalog, selected, onPick, live, liveAt }: Props) {
   return (
-    <div className="space-y-2">
-      <div className="overflow-x-auto rounded border border-current/15">
-        <table className="w-full text-sm">
-          <thead className="text-left text-xs opacity-60">
-            <tr>
-              <th className="px-3 py-2 font-medium">PreStocks token</th>
-              <th className="px-3 py-2 text-right font-medium">Mark</th>
-              <th className="px-3 py-2 text-right font-medium">Listed price</th>
-              <th className="px-3 py-2 text-right font-medium">vs mark</th>
-            </tr>
-          </thead>
-          <tbody>
-            {catalog.tokens.map((t) => (
-              <tr
-                key={t.mint}
-                onClick={() => onPick(t.mint)}
-                className={`cursor-pointer border-t border-current/10 hover:bg-current/5 ${t.mint === selected ? "bg-current/5" : ""}`}
-              >
-                <td className="px-3 py-2">
-                  <div className="flex items-center gap-2">
-                    {t.image && <Image src={t.image} alt="" width={20} height={20} className="rounded-full" />}
-                    <span className="font-semibold">{t.symbol}</span>
-                    {t.deadline && <span className="rounded bg-amber-400 px-1.5 text-[10px] font-semibold text-black">deadline {t.deadline.slice(0, 10)}</span>}
-                  </div>
-                </td>
-                <td className="px-3 py-2 text-right font-mono">${t.markPrice.toFixed(2)}</td>
-                <td className="px-3 py-2 text-right font-mono">${t.tokenPrice.toFixed(2)}</td>
-                <td className={`px-3 py-2 text-right font-mono ${t.listedPremiumPct > 5 ? "font-semibold text-amber-600" : "opacity-70"}`}>
-                  {signedPct(t.listedPremiumPct)}
-                </td>
-              </tr>
-            ))}
-            {catalog.retired.map((r) => (
-              <tr key={r.mint} onClick={() => onPick(r.mint)} className="cursor-pointer border-t border-current/10 opacity-60 hover:bg-current/5">
-                <td className="px-3 py-2" colSpan={4}>
-                  <span className="font-semibold">{r.symbol}</span>{" "}
-                  <span className="text-xs">issuer conversion window closed {r.deadline.slice(0, 10)}, no longer listed</span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="space-y-1">
+      <div className="grid grid-cols-[1fr_auto_4.5rem] px-3 pb-2 font-mono text-[10px] tracking-wider text-muted uppercase">
+        <span>Token</span>
+        <span className="text-right">Live price</span>
+        <span className="text-right">vs mark</span>
       </div>
-      <p className="text-xs opacity-60">
-        Mark and listed price from the PreStocks catalog, read at {utc(catalog.retrievedAt)}. Select a row to check it.
+      {catalog.tokens.map((t) => {
+        const active = t.mint === selected;
+        const quote = live[t.mint];
+        const price = quote?.price ?? t.tokenPrice;
+        const premium = (price / t.markPrice - 1) * 100;
+        const over = premium > 5;
+        return (
+          <button
+            key={t.mint}
+            onClick={() => onPick(t.mint)}
+            className={`grid w-full grid-cols-[1fr_auto_4.5rem] items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-300 ease-spring ${
+              active ? "bg-white/[0.07] ring-1 ring-white/10" : "hover:bg-white/[0.04]"
+            }`}
+          >
+            <span className="flex min-w-0 items-center gap-2.5">
+              {t.image && <Image src={t.image} alt="" width={24} height={24} className="rounded-full ring-1 ring-white/10" />}
+              <span className="font-medium tracking-tight">{t.symbol}</span>
+              {t.deadline && <span className="rounded-full bg-disclose/15 px-2 py-0.5 font-mono text-[9px] text-disclose">deadline</span>}
+            </span>
+            <span
+              key={price}
+              className={`tabular rounded-md px-1.5 text-right font-mono text-[13px] ${quote?.move === "up" ? "animate-tick-up" : quote?.move === "down" ? "animate-tick-down" : ""}`}
+            >
+              {fmtUsd(price)}
+            </span>
+            <span className={`tabular text-right font-mono text-[12px] ${over ? "text-disclose" : "text-muted"}`}>{signedPct(premium)}</span>
+          </button>
+        );
+      })}
+      {catalog.retired.map((r) => (
+        <button
+          key={r.mint}
+          onClick={() => onPick(r.mint)}
+          className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-300 ${
+            r.mint === selected ? "bg-white/[0.07] ring-1 ring-white/10" : "hover:bg-white/[0.04]"
+          }`}
+        >
+          <span className="flex items-center gap-2.5">
+            <Image src="https://www.prestocks.com/logos/xai.png" alt="" width={24} height={24} className="rounded-full opacity-60 ring-1 ring-white/10" />
+            <span className="font-medium tracking-tight text-muted line-through decoration-hold/60">{r.symbol}</span>
+          </span>
+          <span className="font-mono text-[11px] text-hold/80">window closed {fmtDate(r.deadline).split(",")[0]}</span>
+        </button>
+      ))}
+      <p className="flex items-center gap-2 px-3 pt-2 text-[11px] text-muted">
+        <span className={`h-1.5 w-1.5 rounded-full ${liveAt ? "animate-pulse bg-clear" : "bg-muted"}`} />
+        {liveAt ? `Live on-chain prices from GeckoTerminal, updated ${fmtDate(liveAt, true)}.` : "Listed prices from the PreStocks catalog."} Marks from
+        PreStocks, read {fmtDate(catalog.retrievedAt, true)}.
       </p>
     </div>
   );

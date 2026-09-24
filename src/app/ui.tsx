@@ -1,18 +1,10 @@
 import type { Reason } from "@/lib/check";
+import { fmtDate } from "@/lib/format";
+import { StatusLight, TONE } from "./_site/verdict-card";
 
-export const utc = (iso: string) => `${iso.slice(11, 19)} UTC`;
 export const signedPct = (n: number, digits = 1) => `${n >= 0 ? "+" : ""}${n.toFixed(digits)}%`;
 
-const BADGE: Record<string, string> = {
-  CLEAR: "bg-clear text-black",
-  DISCLOSE: "bg-disclose text-black",
-  HOLD: "bg-hold text-black",
-  PREVIEW: "border border-line text-muted",
-};
-
-export function StatusBadge({ status }: { status: string }) {
-  return <span className={`rounded px-2 py-0.5 font-mono text-xs font-semibold tracking-wide ${BADGE[status] ?? ""}`}>{status}</span>;
-}
+export { StatusLight };
 
 const TITLES: Record<string, string> = {
   ISSUER_WINDOW_CLOSED: "Issuer conversion window closed",
@@ -50,43 +42,55 @@ function Evidence({ e }: { e?: Record<string, unknown> }) {
   const statement = str("statement");
   const sha = str("sha256");
   const captured = str("capturedAt");
-  const live = e.liveVerifiedAt;
   const catalogAt = str("catalogRetrievedAt");
   const source = str("source");
-  const lines: React.ReactNode[] = [];
+  const rows: [string, React.ReactNode][] = [];
 
-  if (statement) lines.push(<q key="q">{statement}</q>);
   if (issuerUrl) {
-    lines.push(
-      <span key="src">
-        Source{" "}
-        <a href={issuerUrl} target="_blank" rel="noreferrer" className="underline">
-          {issuerUrl.replace(/^https:\/\//, "")}
-        </a>
-        {typeof live === "string" ? `, verified on the live page at ${utc(live)}` : live === null ? ", not verified on the live page" : ""}
-      </span>,
-    );
+    rows.push([
+      "Source",
+      <a key="src" href={issuerUrl} target="_blank" rel="noreferrer" className="underline decoration-white/20 underline-offset-2 hover:decoration-white/60">
+        {issuerUrl.replace(/^https:\/\//, "")}
+      </a>,
+    ]);
   }
-  if (sha && captured) lines.push(<span key="sha">Reviewed capture {captured.slice(0, 10)}, SHA-256 {sha.slice(0, 12)}…</span>);
-  if (e.basis === "catalog") lines.push(<span key="basis">Basis: the issuer&apos;s listed token price, not your fill</span>);
-  if (catalogAt) lines.push(<span key="cat">Catalog read at {utc(catalogAt)}</span>);
-  if (source) lines.push(<span key="source">Source: {source}</span>);
-  if (!lines.length) return null;
-  return <div className="mt-1 flex flex-col gap-0.5 text-xs opacity-60">{lines}</div>;
+  if ("liveVerifiedAt" in e) rows.push(["Live page", typeof e.liveVerifiedAt === "string" ? `matched ${fmtDate(e.liveVerifiedAt, true)}` : "not verified"]);
+  if (sha && captured) rows.push(["Capture", `${fmtDate(captured)} · SHA-256 ${sha.slice(0, 12)}…`]);
+  if (e.basis === "catalog") rows.push(["Basis", "the issuer's listed price, not your fill"]);
+  if (catalogAt) rows.push(["Catalog read", fmtDate(catalogAt, true)]);
+  if (source) rows.push(["Source", source]);
+
+  return (
+    <>
+      {statement && <blockquote className="mt-3 border-l border-hold/50 pl-3 text-[13px] leading-relaxed text-muted">&ldquo;{statement}&rdquo;</blockquote>}
+      {rows.length > 0 && (
+        <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[12px]">
+          {rows.map(([label, value], i) => (
+            <div key={`${label}-${i}`} className="contents">
+              <dt className="text-muted">{label}</dt>
+              <dd className="font-mono text-[11px] text-foreground/80">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </>
+  );
 }
 
 export function ReasonList({ reasons, empty }: { reasons: Reason[]; empty: string }) {
-  if (!reasons.length) return <p className="text-sm opacity-70">{empty}</p>;
+  if (!reasons.length) return <p className="rounded-xl bg-raised px-4 py-3 text-sm text-muted ring-1 ring-white/[0.05]">{empty}</p>;
   return (
-    <ul className="space-y-3">
+    <ul className="space-y-2">
       {reasons.map((r, i) => (
-        <li key={`${r.code}-${i}`} className="text-sm">
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge status={r.status} />
-            <span className="font-semibold">{TITLES[r.code] ?? r.code}</span>
-            <span className="font-mono text-xs opacity-50">{r.code}</span>
+        <li key={`${r.code}-${i}`} className="rounded-xl bg-raised p-4 ring-1 ring-white/[0.05]">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold tracking-tight">{TITLES[r.code] ?? r.code}</p>
+              <p className="font-mono text-[10px] text-muted">{r.code}</p>
+            </div>
+            <span className={`font-mono text-[10px] font-semibold tracking-wider ${TONE[r.status]}`}>{r.status}</span>
           </div>
-          <p className="mt-1 opacity-80">{r.message}</p>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{r.message}</p>
           <Evidence e={r.evidence} />
         </li>
       ))}
@@ -97,5 +101,14 @@ export function ReasonList({ reasons, empty }: { reasons: Reason[]; empty: strin
 export function NotChecked({ codes }: { codes: string[] }) {
   const labels = [...new Set(codes.map((c) => NOT_CHECKED[c] ?? c))];
   if (!labels.length) return null;
-  return <p className="text-xs opacity-60">Not checked yet: {labels.join(", ")}.</p>;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted">
+      <span>Not checked yet:</span>
+      {labels.map((l) => (
+        <span key={l} className="rounded-full bg-white/[0.04] px-2 py-0.5 ring-1 ring-white/[0.06]">
+          {l}
+        </span>
+      ))}
+    </div>
+  );
 }
