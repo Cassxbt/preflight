@@ -3,6 +3,7 @@
 import { useWallet } from "@solana/wallet-adapter-react";
 import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { VersionedTransaction } from "@solana/web3.js";
+import bs58 from "bs58";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { CheckResult, Reason } from "@/lib/check";
@@ -30,6 +31,24 @@ type Order = {
   transaction: string;
   router: string;
 };
+
+// Survives a reload, so a signed purchase whose outcome is unknown is never forgotten.
+const PENDING_KEY = "preflight:signed";
+
+function readPending(): string | null {
+  try {
+    return sessionStorage.getItem(PENDING_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writePending(signature: string | null) {
+  try {
+    if (signature) sessionStorage.setItem(PENDING_KEY, signature);
+    else sessionStorage.removeItem(PENDING_KEY);
+  } catch {}
+}
 
 const fromBase64 = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 const toBase64 = (bytes: Uint8Array) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
@@ -84,7 +103,13 @@ export default function Checker() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
   const secondsLeft = useSecondsLeft(order?.expiresAt);
+
+  useEffect(() => {
+    const restore = setTimeout(() => setPending(readPending()), 0);
+    return () => clearTimeout(restore);
+  }, []);
 
   function reset() {
     setPreview(null);
@@ -93,6 +118,11 @@ export default function Checker() {
     setAcked([]);
     setError(null);
     setSignature(null);
+  }
+
+  function dismissPending() {
+    writePending(null);
+    setPending(null);
   }
 
   async function runPreview() {
@@ -141,15 +171,22 @@ export default function Checker() {
     try {
       const tx = VersionedTransaction.deserialize(fromBase64(order.transaction));
       const signed = await signTransaction(tx);
+      const signedSignature = bs58.encode(signed.signatures[0]);
+      setSignature(signedSignature);
+      writePending(signedSignature);
+      setPending(signedSignature);
       setBusy("Submitting");
-      const res = await fetch("/api/submit", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ orderId: order.orderId, signedTransaction: toBase64(signed.serialize()), ackedReasons: acked }),
-      });
-      const body = await res.json();
-      if (body.signature) setSignature(body.signature);
-      if (!body.ok) setError(`${body.code}: ${body.error}`);
+      try {
+        const res = await fetch("/api/submit", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ orderId: order.orderId, signedTransaction: toBase64(signed.serialize()), ackedReasons: acked }),
+        });
+        const body = await res.json();
+        if (!body.ok) setError(`${body.code}: ${body.error}`);
+      } catch {
+        setError("OUTCOME_UNKNOWN: Preflight did not hear back after sending. The purchase may still land. Do not buy again; open the receipt.");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Signing was cancelled.");
     } finally {
@@ -159,7 +196,7 @@ export default function Checker() {
 
   const disclosures = order?.check.reasons.filter((r) => r.status === "DISCLOSE") ?? [];
   const allAcked = disclosures.every((r) => acked.includes(r.code));
-  const canSign = !!order && secondsLeft > 0 && allAcked && !busy && !signature;
+  const canSign = !!order && secondsLeft > 0 && allAcked && !busy && !signature && !pending;
 
   return (
     <div className="space-y-8">
@@ -236,7 +273,7 @@ export default function Checker() {
             <WalletMultiButton />
             <button
               onClick={prepareOrder}
-              disabled={!publicKey || !!busy || !!signature}
+              disabled={!publicKey || !!busy || !!signature || !!pending}
               className="rounded bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-50"
             >
               Prepare order
@@ -310,7 +347,7 @@ export default function Checker() {
             >
               Sign and buy
             </button>
-            {secondsLeft === 0 && !signature && (
+            {secondsLeft === 0 && !signature && !pending && (
               <button onClick={prepareOrder} className="text-sm underline">
                 Prepare a fresh order
               </button>
@@ -320,12 +357,17 @@ export default function Checker() {
         </section>
       )}
 
-      {signature && (
-        <section className={`rounded border p-4 text-sm ${error ? "border-amber-500/60" : "border-emerald-600/50"}`}>
-          {error ? "Do not buy again until you have checked this receipt." : "Submitted."}{" "}
-          <Link href={`/r/${signature}`} className="font-mono underline">
-            View receipt
-          </Link>
+      {pending && (
+        <section className={`space-y-2 rounded border p-4 text-sm ${signature === pending && !error ? "border-emerald-600/50" : "border-amber-500/60"}`}>
+          <p>
+            {signature === pending && !error ? "Submitted." : "You signed a purchase. Check its receipt before buying again."}{" "}
+            <Link href={`/r/${pending}`} className="font-mono underline">
+              View receipt
+            </Link>
+          </p>
+          <button onClick={dismissPending} className="text-xs underline opacity-70">
+            I have checked the receipt
+          </button>
         </section>
       )}
     </div>
