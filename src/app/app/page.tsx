@@ -40,7 +40,7 @@ export default async function App(props: PageProps<"/app">) {
             </p>
           </div>
           {catalog && (
-            <dl className="flex gap-px overflow-hidden rounded-2xl bg-white/[0.06] ring-1 ring-white/[0.06]">
+            <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-2xl bg-white/[0.06] ring-1 ring-white/[0.06] md:flex">
               {[
                 ["Listed tokens", String(catalog.tokens.length)],
                 ["Above mark", String(catalog.tokens.filter((t) => t.listedPremiumPct > 5).length)],
