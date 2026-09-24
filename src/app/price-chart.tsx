@@ -94,10 +94,7 @@ export function PriceChart({ mint, initial, mark, live }: { mint: string; initia
       color: css("--disclose"),
       lineWidth: 1,
       lineStyle: LineStyle.Dashed,
-      axisLabelVisible: true,
-      axisLabelColor: "rgba(251,191,36,0.15)",
-      axisLabelTextColor: css("--disclose"),
-      title: "",
+      axisLabelVisible: false,
     });
     instance.subscribeCrosshairMove((param) => {
       const point = param.seriesData.get(area) as { time: number; value: number } | undefined;
