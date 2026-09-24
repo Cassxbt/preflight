@@ -326,6 +326,7 @@ describe("thresholds", () => {
     const reason = r.reasons.find((x) => x.code === "HIGH_NETWORK_COST");
     expect(reason?.status).toBe("DISCLOSE");
     expect(reason?.message).toContain("could not be priced");
+    expect(reason?.message).not.toContain("rent");
     expect(r.signAvailable).toBe(true);
   });
 

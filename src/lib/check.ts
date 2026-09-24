@@ -290,11 +290,15 @@ export function runCheck(input: CheckInput): CheckResult {
     const tooHigh = unpriced || cost > input.policy.maxSolCostLamports || pctOfOrder > input.policy.maxSolCostPctOfOrder;
     if (tooHigh) {
       const opensAccount = input.destAccount?.ok && !input.destAccount.value.exists;
-      const why = opensAccount
-        ? "most of it is rent to open your token account for this mint, refundable if you later close that account"
-        : "this route may open token accounts in your wallet; their rent comes back only if you later close them";
+      // Any token account costs far more rent than the lamport cap, so below it the cost is fees alone.
+      const breakdown =
+        cost <= input.policy.maxSolCostLamports
+          ? "network fees"
+          : opensAccount
+            ? "network fees and rent; most of it is rent to open your token account for this mint, refundable if you later close that account"
+            : "network fees and rent; this route may open token accounts in your wallet, and their rent comes back only if you later close them";
       const share = unpriced ? " Its share of your order could not be priced just now." : "";
-      disclose("HIGH_NETWORK_COST", `This order costs your wallet ${(cost / 1e9).toFixed(6)} SOL in network fees and rent; ${why}.${share}`, {
+      disclose("HIGH_NETWORK_COST", `This order costs your wallet ${(cost / 1e9).toFixed(6)} SOL in ${breakdown}.${share}`, {
         walletSolCostLamports: cost,
         pctOfOrder,
       });
