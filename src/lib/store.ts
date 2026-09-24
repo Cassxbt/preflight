@@ -64,13 +64,17 @@ function fileStore(): Store {
   };
 }
 
-// Upstash when the deployment provides it (Vercel Marketplace injects either variable pair).
+// Upstash when the deployment provides it. Vercel Marketplace injects either pair; only a complete pair counts.
+const REDIS_ENV = [
+  ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"],
+  ["KV_REST_API_URL", "KV_REST_API_TOKEN"],
+] as const;
+
 let redis: Redis | null | undefined;
 export function sharedRedis(): Redis | null {
   if (redis !== undefined) return redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
-  return (redis = url && token ? new Redis({ url, token, automaticDeserialization: false }) : null);
+  const pair = REDIS_ENV.map(([u, t]) => ({ url: process.env[u], token: process.env[t] })).find((p) => p.url && p.token);
+  return (redis = pair ? new Redis({ url: pair.url!, token: pair.token!, automaticDeserialization: false }) : null);
 }
 
 function selectStore(): Store {
@@ -84,6 +88,6 @@ function selectStore(): Store {
 let store: Store | undefined;
 const active = () => (store ??= selectStore());
 
-export const put = (bucket: Bucket, id: string, json: string) => active().put(bucket, id, json);
-export const create = (bucket: Bucket, id: string, json: string) => active().create(bucket, id, json);
-export const get = (bucket: Bucket, id: string) => active().get(bucket, id);
+export const put = async (bucket: Bucket, id: string, json: string) => active().put(bucket, id, json);
+export const create = async (bucket: Bucket, id: string, json: string) => active().create(bucket, id, json);
+export const get = async (bucket: Bucket, id: string) => active().get(bucket, id);
