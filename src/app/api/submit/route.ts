@@ -11,6 +11,6 @@ export async function POST(request: Request) {
     return Response.json(result, { status: result.ok ? 200 : 409 });
   } catch {
     // submitSignedOrder handles every failure after broadcast itself, so anything thrown here happened before it.
-    return Response.json({ ok: false, code: "NOT_SENT", error: "Preflight could not process this submission. Nothing was sent." }, { status: 500 });
+    return Response.json({ ok: false, code: "NOT_SENT", error: "Preflight could not process this submission. Nothing was sent. Prepare a new order." }, { status: 500 });
   }
 }
