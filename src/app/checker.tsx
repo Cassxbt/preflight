@@ -188,9 +188,9 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
     const requested = target.trim();
     try {
       const res = await fetch(`/api/check?mint=${encodeURIComponent(requested)}`);
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       if (selected.current !== requested) return;
-      if (!res.ok) setError(body.error ?? "Check failed.");
+      if (!res.ok) setError(body.error ?? "The check could not run. Try again.");
       else setPreview(body);
     } catch {
       if (selected.current === requested) setError("Network error.");
@@ -209,13 +209,15 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
     clearOrder();
     setError(null);
     setBusy("Quoting and simulating");
+    const target = preview.mint;
     try {
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mint: preview.mint, wallet: publicKey.toBase58(), usdc: Number(usdc) }),
+        body: JSON.stringify({ mint: target, wallet: publicKey.toBase58(), usdc: Number(usdc) }),
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
+      if (selected.current !== target) return;
       if (body.ok) setOrder({ ...body.order, deadline: Date.now() + body.order.expiresInMs });
       else if (body.check) setHeldOrder(body.check);
       else setError(body.error ?? "Order failed.");
@@ -262,6 +264,8 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
 
   const disclosures = order?.check.reasons.filter((r) => r.status === "DISCLOSE") ?? [];
   const allAcked = disclosures.every((r) => acked.includes(r.code));
+  // While an order is quoted, signed or sent, the token and amount it belongs to cannot change.
+  const ordering = busy !== null && busy !== "Checking";
   const canSign = !!order && secondsLeft > 0 && allAcked && !busy && !signature && !pending;
   const previewStatus = preview && preview.status === "CLEAR" ? "PREVIEW" : preview?.status;
   const tokens = (raw: string) => (order ? fmtTokens(tokensUi(raw, order.expected.decimals, order.expected.multiplier)) : "");
@@ -274,7 +278,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
       <div className="space-y-6">
         <Bezel inner="p-3">
           {catalog ? (
-            <CatalogTable catalog={catalog} selected={mint} onPick={pick} live={live.quotes} liveAt={live.at} />
+            <CatalogTable catalog={catalog} selected={mint} onPick={pick} live={live.quotes} liveAt={live.at} disabled={ordering} />
           ) : (
             <p className="p-4 text-sm text-muted">The PreStocks catalog could not be read just now. You can still check a mint by address.</p>
           )}
@@ -289,7 +293,9 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
                   setMint(e.target.value);
                   selected.current = e.target.value.trim();
                   reset();
+                  if (busy === "Checking") setBusy(null);
                 }}
+                disabled={ordering}
                 className={`${field} min-w-0 flex-1 text-[12px]`}
                 spellCheck={false}
               />
@@ -299,7 +305,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
             </div>
             <div className="flex flex-wrap gap-2">
               {OFF_CATALOG_EXAMPLES.map((ex) => (
-                <button key={ex.mint} onClick={() => pick(ex.mint)} className="rounded-full bg-white/[0.04] px-3 py-1 text-[11px] text-muted ring-1 ring-white/[0.07] hover:text-foreground">
+                <button key={ex.mint} onClick={() => pick(ex.mint)} disabled={ordering} className="rounded-full bg-white/[0.04] px-3 py-1 text-[11px] text-muted ring-1 ring-white/[0.07] hover:text-foreground">
                   {ex.label}
                 </button>
               ))}
@@ -341,10 +347,11 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
                     id="usdc"
                     aria-label="Amount in USDC"
                     type="number"
-                    min="0.5"
+                    min="0.01"
                     max="5"
-                    step="0.5"
+                    step="any"
                     value={usdc}
+                    disabled={ordering}
                     onChange={(e) => {
                       setUsdc(e.target.value);
                       clearOrder();

@@ -19,9 +19,9 @@ export type CatalogView = {
 
 export type LiveQuote = { price: number; move: "up" | "down" | null };
 
-type Props = { catalog: CatalogView; selected: string; onPick: (mint: string) => void; live: Record<string, LiveQuote>; liveAt: string | null };
+type Props = { catalog: CatalogView; selected: string; onPick: (mint: string) => void; live: Record<string, LiveQuote>; liveAt: string | null; disabled?: boolean };
 
-export function CatalogTable({ catalog, selected, onPick, live, liveAt }: Props) {
+export function CatalogTable({ catalog, selected, onPick, live, liveAt, disabled = false }: Props) {
   return (
     <div className="space-y-1">
       <div className="grid grid-cols-[1fr_auto_4.5rem] px-3 pb-2 font-mono text-[10px] tracking-wider text-muted uppercase">
@@ -39,7 +39,8 @@ export function CatalogTable({ catalog, selected, onPick, live, liveAt }: Props)
           <button
             key={t.mint}
             onClick={() => onPick(t.mint)}
-            className={`grid w-full grid-cols-[1fr_auto_4.5rem] items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-300 ease-spring ${
+            disabled={disabled}
+            className={`grid w-full disabled:cursor-not-allowed disabled:opacity-60 grid-cols-[1fr_auto_4.5rem] items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors duration-300 ease-spring ${
               active ? "bg-white/[0.07] ring-1 ring-white/10" : "hover:bg-white/[0.04]"
             }`}
           >
