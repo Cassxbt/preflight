@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const counts = new Map<string, number>();
 let failing = false;
+let hanging = false;
 let configured = true;
+let misconfigured = false;
 
 const fakeRedis = {
-  pipeline() {
+  multi() {
     const keys: string[] = [];
     const p = {
       incr: (key: string) => (keys.push(key), p),
       expire: () => p,
       exec: async () => {
+        if (hanging) return new Promise(() => {});
         if (failing) throw new Error("redis down");
         const n = (counts.get(keys[0]) ?? 0) + 1;
         counts.set(keys[0], n);
@@ -21,7 +24,12 @@ const fakeRedis = {
   },
 };
 
-vi.mock("./store", () => ({ sharedRedis: () => (configured ? fakeRedis : null) }));
+vi.mock("./store", () => ({
+  sharedRedis: () => {
+    if (misconfigured) throw new Error("UrlError");
+    return configured ? fakeRedis : null;
+  },
+}));
 
 const { rateLimited } = await import("./rateLimit");
 const from = (ip: string) => new Request("https://preflight.test/api/check", { headers: { "x-real-ip": ip } });
@@ -29,7 +37,9 @@ const from = (ip: string) => new Request("https://preflight.test/api/check", { h
 beforeEach(() => {
   counts.clear();
   failing = false;
+  hanging = false;
   configured = true;
+  misconfigured = false;
 });
 
 describe("rateLimited", () => {
@@ -52,6 +62,17 @@ describe("rateLimited", () => {
     expect(await rateLimited(from("1.2.3.4"), "check", 0)).toBeNull();
     configured = false;
     expect(await rateLimited(from("1.2.3.4"), "check", 0)).toBeNull();
+    misconfigured = true;
+    expect(await rateLimited(from("1.2.3.4"), "check", 0)).toBeNull();
+  });
+
+  it("gives up on a hanging Redis within half a second", async () => {
+    vi.useFakeTimers();
+    hanging = true;
+    const pending = rateLimited(from("1.2.3.4"), "check", 0);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(await pending).toBeNull();
+    vi.useRealTimers();
   });
 
   it("keys by the address and sends anything that is not one to a shared bucket", async () => {
