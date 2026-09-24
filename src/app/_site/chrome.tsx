@@ -13,37 +13,35 @@ export function Mark({ className = "" }: { className?: string }) {
 
 export function SiteHeader({ links = true }: { links?: boolean }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-background/80 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <Mark className="h-6 w-6" />
+    <div className="pointer-events-none sticky top-4 z-40 flex justify-center px-4">
+      <header className="pointer-events-auto flex items-center gap-2 rounded-full bg-background/70 py-1.5 pr-1.5 pl-4 shadow-[0_8px_32px_rgb(0_0_0/0.45)] ring-1 ring-white/10 backdrop-blur-xl">
+        <Link href="/" className="flex items-center gap-2 pr-3 text-sm font-semibold tracking-tight">
+          <Mark className="h-5 w-5" />
           Preflight
         </Link>
-        <span className="hidden items-center gap-1.5 rounded-full border border-line px-2.5 py-0.5 font-mono text-[11px] text-muted sm:flex">
-          <span className="h-1.5 w-1.5 rounded-full bg-clear" />
-          Solana mainnet
-        </span>
         {links && (
-          <nav className="ml-auto hidden gap-6 text-sm text-muted md:flex">
-            <a href="#how" className="hover:text-foreground">
-              How it works
-            </a>
-            <a href="#stack" className="hover:text-foreground">
-              Stack
-            </a>
-            <a href="#proof" className="hover:text-foreground">
-              Proof
-            </a>
-            <a href="#limits" className="hover:text-foreground">
-              Limits
-            </a>
+          <nav className="hidden items-center gap-1 text-sm text-muted md:flex">
+            {[
+              ["#how", "How it works"],
+              ["#stack", "Stack"],
+              ["#proof", "Proof"],
+              ["#limits", "Limits"],
+            ].map(([href, label]) => (
+              <a key={href} href={href} className="rounded-full px-3 py-1.5 transition-colors duration-300 hover:bg-white/[0.06] hover:text-foreground">
+                {label}
+              </a>
+            ))}
           </nav>
         )}
-        <Link href="/app" className={`${links ? "" : "ml-auto"} rounded-full bg-foreground px-4 py-1.5 text-sm font-semibold text-background hover:opacity-90`}>
+        <span className="hidden items-center gap-1.5 px-3 font-mono text-[11px] text-muted sm:flex">
+          <span className="h-1.5 w-1.5 rounded-full bg-clear shadow-[0_0_8px_var(--clear)]" />
+          mainnet
+        </span>
+        <Link href="/app" className="rounded-full bg-foreground px-4 py-1.5 text-sm font-semibold text-background transition-transform duration-500 ease-spring active:scale-[0.97]">
           Launch app
         </Link>
-      </div>
-    </header>
+      </header>
+    </div>
   );
 }
 
