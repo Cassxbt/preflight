@@ -25,6 +25,7 @@
   --color-hold: var(--hold);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-instrument-serif);
 }
 
 body {
@@ -55,6 +56,20 @@ body::after {
 @theme {
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
   --animate-marquee: marquee 40s linear infinite;
+  --animate-tick-up: tick-up 1.4s var(--ease-spring);
+  --animate-tick-down: tick-down 1.4s var(--ease-spring);
+  @keyframes tick-up {
+    from {
+      background: rgb(52 211 153 / 0.28);
+      color: var(--clear);
+    }
+  }
+  @keyframes tick-down {
+    from {
+      background: rgb(248 113 113 / 0.28);
+      color: var(--hold);
+    }
+  }
   @keyframes marquee {
     to {
       transform: translateX(-50%);

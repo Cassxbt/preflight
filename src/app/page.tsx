@@ -28,7 +28,7 @@ function Heading({ eyebrow, title, lead }: { eyebrow: string; title: string; lea
   return (
     <Reveal className="max-w-2xl space-y-5">
       <Eyebrow>{eyebrow}</Eyebrow>
-      <h2 className="text-4xl leading-[1.05] font-semibold tracking-[-0.03em] text-balance sm:text-5xl">{title}</h2>
+      <h2 className="font-display text-5xl leading-[1.02] tracking-[-0.015em] text-balance sm:text-6xl">{title}</h2>
       {lead && <p className="max-w-[60ch] text-lg leading-relaxed text-muted text-pretty">{lead}</p>}
     </Reveal>
   );
@@ -100,8 +100,8 @@ export default async function Landing() {
             <Eyebrow>
               Stocklana · PreStocks track<span className="hidden sm:inline"> · Solana mainnet</span>
             </Eyebrow>
-            <h1 className="text-[3.25rem] leading-[0.98] font-semibold tracking-[-0.045em] text-balance sm:text-7xl">
-              Check the token <span className="bg-gradient-to-b from-foreground to-foreground/45 bg-clip-text text-transparent">before you sign.</span>
+            <h1 className="font-display text-[4rem] leading-[0.92] tracking-[-0.02em] text-balance sm:text-[5.5rem]">
+              Check the token <em className="bg-gradient-to-b from-foreground to-foreground/45 bg-clip-text pr-1 text-transparent">before you sign.</em>
             </h1>
             <p className="max-w-[52ch] text-lg leading-relaxed text-muted text-pretty">
               Preflight checks a PreStocks token against its issuer, its mint and its route. It holds anything that should not be bought, and you
@@ -362,7 +362,9 @@ export default async function Landing() {
         <section className="relative overflow-hidden border-t border-white/[0.06]">
           <div aria-hidden className="absolute top-1/2 left-1/2 h-[420px] w-[720px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.04] blur-[100px]" />
           <Reveal className="relative mx-auto flex max-w-6xl flex-col items-center gap-8 px-4 py-36 text-center">
-            <h2 className="max-w-3xl text-4xl leading-[1.05] font-semibold tracking-[-0.03em] text-balance sm:text-6xl">Check a PreStocks token before your next buy.</h2>
+            <h2 className="max-w-3xl font-display text-5xl leading-[1.02] tracking-[-0.015em] text-balance sm:text-7xl">
+              Check a PreStocks token before your <em className="text-muted">next buy.</em>
+            </h2>
             <Cta href="/app">Launch app</Cta>
           </Reveal>
         </section>
