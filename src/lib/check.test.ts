@@ -36,7 +36,7 @@ function final(over: Partial<CheckInput> = {}): CheckInput {
     catalog: ok({ listed: true, symbol: "ANTHROPIC", markPrice: 1038.61, retrievedAt: NOW }),
     mintState: ok({ paused: false, decimals: 9, multiplier: 1, feeBps: 100 }),
     destAccount: ok({ exists: true, frozen: false }),
-    quote: ok({ hasRoute: true, sizeImpactPct: 0.01, usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n }),
+    quote: quote({ sizeImpactPct: 0.01, usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n }),
     simulation: ok({ succeeded: true, creditRaw: 1_897_345n, walletSolCostLamports: 6_000 }),
     policy: { maxSolCostLamports: 50_000, maxSolCostPctOfOrder: 0.5, solUsd: 200 },
     ...over,
@@ -50,6 +50,10 @@ function preview(over: Partial<CheckInput> = {}): CheckInput {
 
 const verified = (over: Partial<{ fetchedAt: string; mintLinked: boolean; statementPresent: boolean; linkedMints: string[]; captureIntact: boolean }> = {}) =>
   ok({ fetchedAt: NOW, mintLinked: true, statementPresent: true, linkedMints: [], captureIntact: true, ...over });
+
+type Quote = { sizeImpactPct?: number | null; usdcInRaw: bigint; netOutRaw: bigint; minOutRaw?: bigint | null };
+// Defaults the slippage minimum to 2% below the expected credit.
+const quote = ({ netOutRaw, ...rest }: Quote) => ok({ hasRoute: true, sizeImpactPct: 0, minOutRaw: (netOutRaw * 98n) / 100n, netOutRaw, ...rest });
 
 const codes = (input: CheckInput) => runCheck(input).reasons.map((r) => r.code);
 const priceOf = (input: CheckInput) => runCheck(input).metrics.executablePrice!;
@@ -94,7 +98,7 @@ describe("acceptance 3: SPACEX future deadline plus other warnings", () => {
     catalog: ok({ listed: true, symbol: "SPACEX", markPrice: 80, retrievedAt: NOW, mintForLifecycleSymbol: "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh" }),
     mintState: ok({ paused: false, decimals: 9, multiplier: 5, feeBps: 100 }),
     destAccount: ok({ exists: false, frozen: false }),
-    quote: ok({ hasRoute: true, sizeImpactPct: 3.5, usdcInRaw: 5_000_000n, netOutRaw: 8_672_375n }),
+    quote: quote({ sizeImpactPct: 3.5, usdcInRaw: 5_000_000n, netOutRaw: 8_672_375n }),
     simulation: ok({ succeeded: true, creditRaw: 8_672_375n, walletSolCostLamports: 1_626_668 }),
   });
 
@@ -157,7 +161,7 @@ describe("acceptance 4: unknown, unavailable, paused, frozen", () => {
   });
 
   it("holds when no route exists", () => {
-    expect(codes(final({ quote: ok({ hasRoute: false, sizeImpactPct: null, usdcInRaw: 2_000_000n, netOutRaw: 0n }) }))).toContain(
+    expect(codes(final({ quote: ok({ hasRoute: false, sizeImpactPct: null, usdcInRaw: 2_000_000n, netOutRaw: 0n, minOutRaw: null }) }))).toContain(
       "NO_EXECUTABLE_ROUTE",
     );
   });
@@ -198,10 +202,41 @@ describe("acceptance 4: unknown, unavailable, paused, frozen", () => {
 describe("thresholds", () => {
   const price = 2 / 0.001897345;
 
-  it("discloses ABOVE_MARK above 5% and not at 4.99%", () => {
-    const at = (pct: number) => codes(final({ catalog: ok({ listed: true, markPrice: price / (1 + pct / 100), retrievedAt: NOW }) }));
+  it("discloses ABOVE_MARK above 5% and not at 4.99% (no slippage)", () => {
+    const at = (pct: number) =>
+      codes(
+        final({
+          catalog: ok({ listed: true, markPrice: price / (1 + pct / 100), retrievedAt: NOW }),
+          quote: quote({ usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n, minOutRaw: 1_897_345n }),
+        }),
+      );
     expect(at(4.99)).not.toContain("ABOVE_MARK");
     expect(at(5.01)).toContain("ABOVE_MARK");
+  });
+
+  it("discloses ABOVE_MARK when only the worst-case fill breaches the policy (saved order, 23 Sep 20:35 UTC)", () => {
+    const r = runCheck(
+      final({
+        catalog: ok({ listed: true, markPrice: 1041.72, retrievedAt: NOW }),
+        quote: quote({ usdcInRaw: 2_000_000n, netOutRaw: 1_892_399n, minOutRaw: 1_800_947n }),
+      }),
+    );
+    expect(r.metrics.premiumPct).toBeCloseTo(1.45, 2);
+    expect(r.metrics.worstPremiumPct).toBeCloseTo(6.61, 2);
+    expect(r.status).toBe("DISCLOSE");
+    expect(r.reasons[0]).toMatchObject({ code: "ABOVE_MARK" });
+    expect(r.reasons[0].message).toContain("allows a fill at up to $1110.53");
+  });
+
+  it("stays CLEAR when the worst-case fill is within the policy", () => {
+    const r = runCheck(final({ quote: quote({ usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n, minOutRaw: 1_880_000n }) }));
+    expect(r.metrics.worstPremiumPct).toBeLessThan(5);
+    expect(r.status).toBe("CLEAR");
+  });
+
+  it("marks the worst case not evaluated when the route has no minimum", () => {
+    const r = runCheck(final({ quote: quote({ usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n, minOutRaw: null }) }));
+    expect(r.notEvaluated).toContain("ABOVE_MARK_WORST_CASE");
   });
 
   it("does not warn when the price is below the mark", () => {
@@ -209,14 +244,14 @@ describe("thresholds", () => {
   });
 
   it("discloses THIN_ROUTE above 3% size impact and not at 2.99%", () => {
-    const at = (pct: number) => codes(final({ quote: ok({ hasRoute: true, sizeImpactPct: pct, usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n }) }));
+    const at = (pct: number) => codes(final({ quote: quote({ sizeImpactPct: pct, usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n }) }));
     expect(at(2.99)).not.toContain("THIN_ROUTE");
     expect(at(3.01)).toContain("THIN_ROUTE");
     expect(at(-5)).not.toContain("THIN_ROUTE");
   });
 
   it("marks THIN_ROUTE not evaluated when size impact could not be measured", () => {
-    const r = runCheck(final({ quote: ok({ hasRoute: true, sizeImpactPct: null, usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n }) }));
+    const r = runCheck(final({ quote: quote({ sizeImpactPct: null, usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n }) }));
     expect(r.notEvaluated).toEqual(["THIN_ROUTE"]);
   });
 
@@ -246,14 +281,14 @@ describe("acceptance 5: fee and amount math", () => {
   });
 
   it("prices from the net credit without subtracting the fee a second time", () => {
-    const gate = final({ quote: ok({ hasRoute: true, sizeImpactPct: 0, usdcInRaw: 5_000_000n, netOutRaw: 4_816_104n }) });
+    const gate = final({ quote: quote({ sizeImpactPct: 0, usdcInRaw: 5_000_000n, netOutRaw: 4_816_104n }) });
     expect(priceOf(gate)).toBe(5 / (4_816_104 / 1e9));
   });
 
   it("applies a non-unit scaled-UI multiplier to the credited amount", () => {
     const spacex = final({
       mintState: ok({ paused: false, decimals: 9, multiplier: 5, feeBps: 100 }),
-      quote: ok({ hasRoute: true, sizeImpactPct: 0, usdcInRaw: 5_000_000n, netOutRaw: 8_672_375n }),
+      quote: quote({ sizeImpactPct: 0, usdcInRaw: 5_000_000n, netOutRaw: 8_672_375n }),
     });
     expect(runCheck(spacex).metrics.netOutUi).toBeCloseTo(0.043361875, 12);
     expect(priceOf(spacex)).toBeCloseTo(5 / 0.043361875, 9);

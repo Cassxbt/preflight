@@ -307,7 +307,11 @@ export default function Checker() {
             <dt className="opacity-70">You receive (simulated)</dt>
             <dd className="font-mono">{fmtTokens(tokensUi(order.expected.netOutRaw, order.expected.decimals, order.expected.multiplier))} {order.symbol}</dd>
             <dt className="opacity-70">Minimum if swap succeeds</dt>
-            <dd className="font-mono">{fmtTokens(tokensUi(order.expected.minOutRaw, order.expected.decimals, order.expected.multiplier))} {order.symbol}</dd>
+            <dd className="font-mono">
+              {fmtTokens(tokensUi(order.expected.minOutRaw, order.expected.decimals, order.expected.multiplier))} {order.symbol}
+              {order.check.metrics.worstPremiumPct !== undefined &&
+                ` (up to $${order.check.metrics.worstPrice?.toFixed(2)}, ${order.check.metrics.worstPremiumPct >= 0 ? "+" : ""}${order.check.metrics.worstPremiumPct.toFixed(2)}% vs mark)`}
+            </dd>
             <dt className="opacity-70">Price per token</dt>
             <dd className="font-mono">
               ${order.check.metrics.executablePrice?.toFixed(2)}

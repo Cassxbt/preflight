@@ -32,7 +32,7 @@ export type CheckInput = {
   catalog: Outcome<{ listed: boolean; symbol?: string; markPrice?: number; retrievedAt: string; mintForLifecycleSymbol?: string | null }>;
   mintState: Outcome<{ paused: boolean | null; decimals: number; multiplier: number; feeBps: number | null }>;
   destAccount?: Outcome<{ exists: boolean; frozen: boolean }>;
-  quote?: Outcome<{ hasRoute: boolean; sizeImpactPct: number | null; usdcInRaw: bigint; netOutRaw: bigint }>;
+  quote?: Outcome<{ hasRoute: boolean; sizeImpactPct: number | null; usdcInRaw: bigint; netOutRaw: bigint; minOutRaw: bigint | null }>;
   simulation?: Outcome<{ succeeded: boolean; creditRaw: bigint; walletSolCostLamports: number; error?: string }>;
   policy?: { maxSolCostLamports: number; maxSolCostPctOfOrder: number; solUsd: number | null };
 };
@@ -42,7 +42,15 @@ export type CheckResult = {
   signAvailable: boolean;
   reasons: Reason[];
   notEvaluated: string[];
-  metrics: { executablePrice?: number; premiumPct?: number; sizeImpactPct?: number; netOutUi?: number; walletSolCostLamports?: number };
+  metrics: {
+    executablePrice?: number;
+    premiumPct?: number;
+    worstPrice?: number;
+    worstPremiumPct?: number;
+    sizeImpactPct?: number;
+    netOutUi?: number;
+    walletSolCostLamports?: number;
+  };
 };
 
 const SEVERITY: Record<Exclude<Status, "CLEAR">, number> = { HOLD: 2, DISCLOSE: 1 };
@@ -170,16 +178,38 @@ export function runCheck(input: CheckInput): CheckResult {
     }
     if (input.mintState.ok && input.catalog.ok && input.catalog.value.markPrice) {
       const m = input.mintState.value;
-      const netOutUi = (Number(q.netOutRaw) / 10 ** m.decimals) * m.multiplier;
+      const mark = input.catalog.value.markPrice;
+      const usdc = Number(q.usdcInRaw) / 1e6;
+      const toUi = (raw: bigint) => (Number(raw) / 10 ** m.decimals) * m.multiplier;
+      const netOutUi = toUi(q.netOutRaw);
       if (netOutUi > 0) {
-        const price = Number(q.usdcInRaw) / 1e6 / netOutUi;
-        const premiumPct = (price / input.catalog.value.markPrice - 1) * 100;
+        const price = usdc / netOutUi;
+        const premiumPct = (price / mark - 1) * 100;
         Object.assign(metrics, { netOutUi, executablePrice: price, premiumPct });
+
+        // The policy has to hold for the worst fill the transaction allows, not only the expected one.
+        const minOutUi = q.minOutRaw !== null ? toUi(q.minOutRaw) : 0;
+        const worstPrice = minOutUi > 0 ? usdc / minOutUi : null;
+        const worstPremiumPct = worstPrice !== null ? (worstPrice / mark - 1) * 100 : null;
+        if (worstPrice !== null && worstPremiumPct !== null) Object.assign(metrics, { worstPrice, worstPremiumPct });
+        else notEvaluated.push("ABOVE_MARK_WORST_CASE");
+
+        const evidence = { markPrice: mark, executablePrice: price, worstPrice, catalogRetrievedAt: input.catalog.value.retrievedAt };
+        const worstText =
+          worstPrice !== null && worstPremiumPct !== null
+            ? ` If the swap fills at its minimum you pay up to $${worstPrice.toFixed(2)} (${worstPremiumPct.toFixed(1)}% above).`
+            : "";
         if (premiumPct > ABOVE_MARK_THRESHOLD_PCT) {
           disclose(
             "ABOVE_MARK",
-            `You pay $${price.toFixed(2)} per token, ${premiumPct.toFixed(1)}% above the issuer mark of $${input.catalog.value.markPrice.toFixed(2)} (policy threshold ${ABOVE_MARK_THRESHOLD_PCT}%).`,
-            { markPrice: input.catalog.value.markPrice, executablePrice: price, catalogRetrievedAt: input.catalog.value.retrievedAt },
+            `You pay $${price.toFixed(2)} per token, ${premiumPct.toFixed(1)}% above the issuer mark of $${mark.toFixed(2)} (policy threshold ${ABOVE_MARK_THRESHOLD_PCT}%).${worstText}`,
+            evidence,
+          );
+        } else if (worstPremiumPct !== null && worstPremiumPct > ABOVE_MARK_THRESHOLD_PCT) {
+          disclose(
+            "ABOVE_MARK",
+            `Expected $${price.toFixed(2)} per token (${premiumPct.toFixed(1)}% vs the issuer mark of $${mark.toFixed(2)}), but the route allows a fill at up to $${worstPrice!.toFixed(2)}, ${worstPremiumPct.toFixed(1)}% above the mark (policy threshold ${ABOVE_MARK_THRESHOLD_PCT}%).`,
+            evidence,
           );
         }
       }

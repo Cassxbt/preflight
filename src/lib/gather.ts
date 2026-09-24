@@ -196,7 +196,7 @@ export async function gatherForOrder(mint: string, wallet: string, usdcRaw: bigi
 
   if (!best) {
     input.quote = lastError?.startsWith("simulation:")
-      ? { ok: true, value: { hasRoute: true, sizeImpactPct: null, usdcInRaw: usdcRaw, netOutRaw: 0n } }
+      ? { ok: true, value: { hasRoute: true, sizeImpactPct: null, usdcInRaw: usdcRaw, netOutRaw: 0n, minOutRaw: null } }
       : { ok: false, error: lastError ?? "no quote" };
     input.simulation = lastError?.startsWith("simulation:")
       ? { ok: true, value: { succeeded: false, creditRaw: 0n, walletSolCostLamports: 0, error: lastError } }
@@ -205,7 +205,10 @@ export async function gatherForOrder(mint: string, wallet: string, usdcRaw: bigi
   }
 
   const impact = await sizeImpactPct(mint, usdcRaw, BigInt(best.order.outAmount), best.order.router);
-  input.quote = { ok: true, value: { hasRoute: true, sizeImpactPct: impact, usdcInRaw: usdcRaw, netOutRaw: best.creditRaw } };
+  input.quote = {
+    ok: true,
+    value: { hasRoute: true, sizeImpactPct: impact, usdcInRaw: usdcRaw, netOutRaw: best.creditRaw, minOutRaw: best.minOutRaw > 0n ? best.minOutRaw : null },
+  };
   input.simulation = { ok: true, value: { succeeded: true, creditRaw: best.creditRaw, walletSolCostLamports: best.walletSolCostLamports } };
   return { input, prepared: best, destAddress: dest.value.address };
 }
