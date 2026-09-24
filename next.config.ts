@@ -2,7 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "www.prestocks.com", pathname: "/logos/**" }],
+    remotePatterns: [
+      { protocol: "https", hostname: "www.prestocks.com", pathname: "/logos/**" },
+      { protocol: "https", hostname: "prestocks.com", pathname: "/logos/**" },
+    ],
   },
   outputFileTracingIncludes: {
     "/api/check": ["./src/data/captures/**/*"],

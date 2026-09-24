@@ -1,46 +1,63 @@
+import Image from "next/image";
 import type { CheckResult } from "@/lib/check";
+import { Bezel } from "./primitives";
 
-const TONE: Record<string, string> = { CLEAR: "text-clear", DISCLOSE: "text-disclose", HOLD: "text-hold" };
-const DOT: Record<string, string> = { CLEAR: "bg-clear", DISCLOSE: "bg-disclose", HOLD: "bg-hold" };
+export const TONE: Record<string, string> = { CLEAR: "text-clear", DISCLOSE: "text-disclose", HOLD: "text-hold", PREVIEW: "text-muted" };
+const GLOW: Record<string, string> = {
+  CLEAR: "bg-clear shadow-[0_0_12px_var(--clear)]",
+  DISCLOSE: "bg-disclose shadow-[0_0_12px_var(--disclose)]",
+  HOLD: "bg-hold shadow-[0_0_12px_var(--hold)]",
+  PREVIEW: "bg-muted",
+};
 
-type Props = { symbol: string; mint: string; checkedAt: string; result: CheckResult };
+export function StatusLight({ status }: { status: string }) {
+  return (
+    <span className={`flex items-center gap-2 font-mono text-xs font-semibold tracking-wider ${TONE[status]}`}>
+      <span className={`h-2 w-2 rounded-full ${GLOW[status]}`} />
+      {status}
+    </span>
+  );
+}
 
-export function VerdictCard({ symbol, mint, checkedAt, result }: Props) {
+type Props = { symbol: string; mint: string; checkedAt: string; result: CheckResult; logo?: string };
+
+export function VerdictCard({ symbol, mint, checkedAt, result, logo }: Props) {
   const lifecycle = result.reasons.find((r) => r.code === "ISSUER_WINDOW_CLOSED" || r.code === "ISSUER_DEADLINE");
   const live = typeof lifecycle?.evidence?.liveVerifiedAt === "string" ? (lifecycle.evidence.liveVerifiedAt as string) : null;
+  const statement = typeof lifecycle?.evidence?.statement === "string" ? (lifecycle.evidence.statement as string) : null;
   return (
-    <div className="rounded-2xl border border-line bg-surface/90 shadow-2xl shadow-black/50 backdrop-blur">
-      <div className="flex items-center justify-between border-b border-line px-5 py-3 font-mono text-[11px] uppercase tracking-wider text-muted">
+    <Bezel className="shadow-[0_40px_80px_-20px_rgb(0_0_0/0.8)]">
+      <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
         <span>Live check · no wallet</span>
-        <span>{checkedAt.slice(11, 19)} UTC</span>
+        <span className="tabular">{checkedAt.slice(11, 19)} UTC</span>
       </div>
       <div className="space-y-5 p-5">
-        <div className="flex items-baseline justify-between gap-4">
-          <div>
-            <p className="text-lg font-semibold">{symbol}</p>
-            <p className="font-mono text-[11px] text-muted">{mint}</p>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {logo && <Image src={logo} alt={`${symbol} logo`} width={36} height={36} className="rounded-full ring-1 ring-white/10" />}
+            <div>
+              <p className="text-lg font-semibold tracking-tight">{symbol}</p>
+              <p className="font-mono text-[10px] text-muted">
+                {mint.slice(0, 6)}…{mint.slice(-6)}
+              </p>
+            </div>
           </div>
-          <span className={`flex items-center gap-2 font-mono text-sm font-semibold ${TONE[result.status]}`}>
-            <span className={`h-2 w-2 rounded-full ${DOT[result.status]}`} />
-            {result.status}
-          </span>
+          <StatusLight status={result.status} />
         </div>
-        <ul className="space-y-2">
+        <ul className="space-y-1.5">
           {result.reasons.map((r, i) => (
-            <li key={`${r.code}-${i}`} className="flex items-center justify-between gap-4 rounded-lg border border-line bg-raised px-3 py-2">
-              <span className="font-mono text-xs">{r.code}</span>
-              <span className={`font-mono text-[11px] ${TONE[r.status]}`}>{r.status}</span>
+            <li key={`${r.code}-${i}`} className="flex items-center justify-between gap-4 rounded-xl bg-raised px-3 py-2.5 ring-1 ring-white/[0.05]">
+              <span className="font-mono text-[11px]">{r.code}</span>
+              <span className={`font-mono text-[10px] ${TONE[r.status]}`}>{r.status}</span>
             </li>
           ))}
         </ul>
-        {typeof lifecycle?.evidence?.statement === "string" && (
-          <blockquote className="border-l-2 border-hold/60 pl-3 text-sm text-muted">&ldquo;{lifecycle.evidence.statement}&rdquo;</blockquote>
-        )}
-        <div className="flex items-center justify-between border-t border-line pt-4 text-xs text-muted">
-          <span>{live ? `Matched on prestocks.com at ${live.slice(11, 19)} UTC` : "Issuer page not verified live"}</span>
-          <span className="font-mono">{result.signAvailable ? "signable" : "no transaction built"}</span>
+        {statement && <blockquote className="border-l border-hold/50 pl-3 text-[13px] leading-relaxed text-muted">&ldquo;{statement}&rdquo;</blockquote>}
+        <div className="flex items-center justify-between border-t border-white/[0.06] pt-4 text-[11px] text-muted">
+          <span>{live ? `Matched on prestocks.com · ${live.slice(11, 19)} UTC` : "Issuer page not verified live"}</span>
+          <span className="font-mono">{result.signAvailable ? "signable" : "no tx built"}</span>
         </div>
       </div>
-    </div>
+    </Bezel>
   );
 }
