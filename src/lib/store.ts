@@ -4,7 +4,7 @@ import path from "node:path";
 // Local file store; pending orders never leave the server. A deployed store must keep create() atomic.
 const root = () => process.env.PREFLIGHT_DATA_DIR ?? path.join(/*turbopackIgnore: true*/ process.cwd(), ".data");
 
-export type Bucket = "orders" | "receipts";
+export type Bucket = "orders" | "receipts" | "locks";
 
 function file(bucket: Bucket, id: string): string {
   if (!/^[A-Za-z0-9_-]{8,128}$/.test(id)) throw new Error("Invalid record id");

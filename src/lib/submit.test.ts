@@ -110,6 +110,28 @@ describe("submitSignedOrder", () => {
     expect(await get("orders", `${orderId}-submitted`)).toBeNull();
   });
 
+  it("records the acknowledged reasons on the receipt", async () => {
+    const { orderId, signed, signature } = await storedOrder([{ code: "ABOVE_MARK", status: "DISCLOSE", message: "above mark" }]);
+    execute.mockResolvedValueOnce({ ...SUCCESS, signature });
+    await submitSignedOrder(orderId, signed, ["ABOVE_MARK", "ABOVE_MARK"]);
+    expect(JSON.parse((await get("receipts", signature))!)).toMatchObject({ ackedReasons: ["ABOVE_MARK"], jupiterSignatureMatches: true });
+  });
+
+  it("keeps submission locks out of the order namespace", async () => {
+    const { orderId, signed, signature } = await storedOrder();
+    execute.mockResolvedValueOnce({ ...SUCCESS, signature });
+    await submitSignedOrder(orderId, signed, []);
+    expect(await submitSignedOrder(`${orderId}-submitted`, signed, [])).toMatchObject({ ok: false, code: "ORDER_NOT_FOUND" });
+  });
+
+  it("treats an unreadable expiry as expired", async () => {
+    const { orderId, signed } = await storedOrder();
+    const order = JSON.parse((await get("orders", orderId))!);
+    await put("orders", orderId, JSON.stringify({ ...order, expiresAt: "not a date" }));
+    expect(await submitSignedOrder(orderId, signed, [])).toMatchObject({ ok: false, code: "ORDER_EXPIRED" });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("requires every disclosed reason to be acknowledged", async () => {
     const { orderId, signed } = await storedOrder([{ code: "ABOVE_MARK", status: "DISCLOSE", message: "above mark" }]);
 

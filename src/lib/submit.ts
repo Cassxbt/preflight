@@ -5,7 +5,7 @@ import { canonicalJson } from "./canonical";
 import { metaExecute, type ExecuteResult } from "./jupiter";
 import { loadOrder } from "./order";
 import { blocksUntilExpiry, SUBMIT_MARGIN_BLOCKS } from "./solana";
-import { create, get, put } from "./store";
+import { create, put } from "./store";
 
 export type SubmitResult =
   | { ok: true; signature: string; execute: ExecuteResult }
@@ -14,7 +14,7 @@ export type SubmitResult =
 export async function submitSignedOrder(orderId: string, signedTxBase64: string, ackedReasons: string[]): Promise<SubmitResult> {
   const order = await loadOrder(orderId);
   if (!order) return { ok: false, code: "ORDER_NOT_FOUND", error: "Unknown or already discarded order." };
-  if (Date.now() > Date.parse(order.expiresAt)) {
+  if (!(Date.now() <= Date.parse(order.expiresAt))) {
     return { ok: false, code: "ORDER_EXPIRED", error: "This order expired before it was signed. Prepare a new order." };
   }
 
@@ -55,10 +55,9 @@ export async function submitSignedOrder(orderId: string, signedTxBase64: string,
   // The signature is fixed by the signed bytes, so it is known before anything is broadcast.
   // Recording it first means every later failure still leaves a receipt that can be reconciled on chain.
   const signature = bs58.encode(payerSig);
-  const lockId = `${orderId}-submitted`;
-  if (!(await create("orders", lockId, JSON.stringify({ signature, at: new Date().toISOString() })))) {
-    const prior = JSON.parse((await get("orders", lockId)) ?? "{}");
-    return { ok: false, code: "ALREADY_SUBMITTED", error: "This order was already submitted. Check its receipt before buying again.", signature: prior.signature };
+  if (!(await create("locks", orderId, JSON.stringify({ signature, at: new Date().toISOString() })))) {
+    // Only a parallel submit of this same order can hold the lock, and it signed these same bytes.
+    return { ok: false, code: "ALREADY_SUBMITTED", error: "This order was already submitted. Check its receipt before buying again.", signature };
   }
 
   const record = {
@@ -66,6 +65,7 @@ export async function submitSignedOrder(orderId: string, signedTxBase64: string,
     orderId,
     signature,
     submittedAt: new Date().toISOString(),
+    ackedReasons: [...new Set(ackedReasons)].sort(),
     order: { ...order, unsignedTx: undefined, messageBase64: undefined },
     execute: null as ExecuteResult | null,
   };
@@ -83,7 +83,8 @@ export async function submitSignedOrder(orderId: string, signedTxBase64: string,
     };
   }
 
-  await put("receipts", signature, canonicalJson({ ...record, execute }));
+  // Past this point the transaction may be on chain, so a failed write must not turn into an error response.
+  await put("receipts", signature, canonicalJson({ ...record, execute, jupiterSignatureMatches: execute.signature === signature })).catch(() => {});
   if (execute.status !== "Success") {
     return { ok: false, code: `EXECUTE_${execute.code}`, error: execute.error ?? "Jupiter reported the swap failed.", signature };
   }

@@ -38,7 +38,7 @@ type QuoteRequest = Omit<SwapRequest, "taker"> & { taker?: string; slippageBps?:
 
 async function jupiterGet<T>(path: string, params: Record<string, string>): Promise<T> {
   const url = `${JUPITER_SWAP_BASE}${path}?${new URLSearchParams(params)}`;
-  const send = () => fetch(url, { headers: { "x-api-key": serverEnv.jupiterApiKey() }, cache: "no-store" });
+  const send = () => fetch(url, { headers: { "x-api-key": serverEnv.jupiterApiKey() }, cache: "no-store", signal: AbortSignal.timeout(15_000) });
   let res = await send();
   if (res.status === 429) {
     await new Promise((r) => setTimeout(r, 1000));
@@ -62,6 +62,7 @@ export async function metaExecute(signedTransaction: string, requestId: string):
     headers: { "content-type": "application/json", "x-api-key": serverEnv.jupiterApiKey() },
     body: JSON.stringify({ signedTransaction, requestId }),
     cache: "no-store",
+    signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) throw new Error(`Jupiter /execute ${res.status}: ${await res.text()}`);
   return res.json() as Promise<ExecuteResult>;
