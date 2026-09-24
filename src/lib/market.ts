@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { fetchCatalog, findExact } from "./catalog";
 import { lifecycleFor } from "./lifecycle";
-import { readMintState } from "./mintState";
+import { readMintState, scheduledMultiplier, type MultiplierSchedule } from "./mintState";
 
 const GECKO = "https://api.geckoterminal.com/api/v2/networks/solana";
 
@@ -11,8 +11,10 @@ const SNAPSHOT_CACHE_MS = 15_000;
 // The free API allows about 30 calls a minute; a 7-day chart barely changes in 5 minutes.
 const DETAIL_CACHE_MS = 5 * 60_000;
 
-const multipliers = new Map<string, { value: number; at: number }>();
+const schedules = new Map<string, { value: MultiplierSchedule; at: number }>();
 let snapshot: { at: number; value: MarketSnapshot } | null = null;
+let snapshotInFlight: Promise<MarketSnapshot> | null = null;
+const inFlight = new Map<string, Promise<unknown>>();
 const details = new Map<string, { at: number; value: TokenDetail }>();
 
 async function gecko(path: string): Promise<unknown> {
@@ -41,23 +43,38 @@ export async function tokenChart(mint: string, pool: string, range: ChartRange):
   const hit = charts.get(key);
   if (hit && Date.now() - hit.at < DETAIL_CACHE_MS) return hit.value;
   try {
-    const [body, scale] = await Promise.all([gecko(`/pools/${pool}/ohlcv/${CHART_RANGES[range]}&currency=usd&token=${mint}`), multiplier(mint)]);
-    const value = Ohlcv.parse(body)
-      .data.attributes.ohlcv_list.map((c) => [c[0], c[4] / scale] as [number, number])
-      .sort((a, b) => a[0] - b[0]);
+    const [body, scale] = await Promise.all([
+      shared(`ohlcv:${pool}:${range}`, () => gecko(`/pools/${pool}/ohlcv/${CHART_RANGES[range]}&currency=usd&token=${mint}`)),
+      multiplier(mint),
+    ]);
+    const byTime = new Map<number, number>();
+    for (const c of Ohlcv.parse(body).data.attributes.ohlcv_list) byTime.set(c[0], c[4] / scale);
+    const value = [...byTime].sort((a, b) => a[0] - b[0]);
+    if (value.length < 2) return hit?.value ?? null;
     charts.set(key, { at: Date.now(), value });
     return value;
   } catch {
-    return null;
+    return hit?.value ?? null;
   }
 }
 
+// The schedule is cached, never the resolved value, so a scheduled multiplier change applies the moment it takes effect.
 async function multiplier(mint: string): Promise<number> {
-  const hit = multipliers.get(mint);
-  if (hit && Date.now() - hit.at < MULTIPLIER_CACHE_MS) return hit.value;
-  const value = (await readMintState(mint)).multiplier;
-  multipliers.set(mint, { value, at: Date.now() });
-  return value;
+  let hit = schedules.get(mint);
+  if (!hit || Date.now() - hit.at >= MULTIPLIER_CACHE_MS) {
+    hit = { value: (await readMintState(mint)).multiplierSchedule, at: Date.now() };
+    schedules.set(mint, hit);
+  }
+  return scheduledMultiplier(hit.value, Math.floor(Date.now() / 1000));
+}
+
+// Concurrent requests for the same upstream resource share one fetch.
+function shared<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const running = inFlight.get(key) as Promise<T> | undefined;
+  if (running) return running;
+  const promise = load().finally(() => inFlight.delete(key));
+  inFlight.set(key, promise);
+  return promise;
 }
 
 const MultiToken = z.object({
@@ -70,6 +87,19 @@ export type MarketSnapshot = { at: string; source: "GeckoTerminal"; quotes: Mark
 
 export async function marketSnapshot(): Promise<MarketSnapshot> {
   if (snapshot && Date.now() - snapshot.at < SNAPSHOT_CACHE_MS) return snapshot.value;
+  snapshotInFlight ??= loadSnapshot().finally(() => {
+    snapshotInFlight = null;
+  });
+  try {
+    return await snapshotInFlight;
+  } catch (e) {
+    // A stale price with its timestamp beats no price while the source is rate-limiting.
+    if (snapshot) return snapshot.value;
+    throw e;
+  }
+}
+
+async function loadSnapshot(): Promise<MarketSnapshot> {
   const catalog = await fetchCatalog();
   const mints = catalog.entries.map((e) => e.contract_address);
   const [body, scales] = await Promise.all([gecko(`/tokens/multi/${mints.join(",")}`), Promise.all(mints.map((m) => multiplier(m).catch(() => null)))]);
@@ -127,13 +157,19 @@ export async function tokenDetail(mint: string): Promise<TokenDetail | null> {
   const hit = details.get(mint);
   if (hit && Date.now() - hit.at < DETAIL_CACHE_MS) return hit.value;
 
-  const [catalog, market, scale] = await Promise.all([fetchCatalog(), marketSnapshot().catch(() => null), multiplier(mint)]);
+  const catalog = await fetchCatalog();
   const entry = findExact(catalog, mint);
   if (!entry) return null;
+  const [market, scale] = await Promise.all([marketSnapshot().catch(() => null), multiplier(mint)]);
   const poolId = market?.quotes.find((q) => q.mint === mint)?.topPool ?? null;
 
   const [pool, candles] = poolId
-    ? await Promise.all([gecko(`/pools/${poolId}`).then((b) => Pool.parse(b).data.attributes).catch(() => null), tokenChart(mint, poolId, "1W")])
+    ? await Promise.all([
+        shared(`pool:${poolId}`, () => gecko(`/pools/${poolId}`))
+          .then((b) => Pool.parse(b).data.attributes)
+          .catch(() => null),
+        tokenChart(mint, poolId, "1W"),
+      ])
     : [null, null];
 
   const lifecycle = lifecycleFor(mint);

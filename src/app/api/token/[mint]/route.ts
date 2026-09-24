@@ -11,7 +11,9 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/api/token/[
   }
   try {
     const detail = await tokenDetail(mint);
-    return detail ? Response.json(detail) : Response.json({ error: "Not a PreStocks catalog token." }, { status: 404 });
+    if (!detail) return Response.json({ error: "Not a PreStocks catalog token." }, { status: 404 });
+    const complete = detail.pool && detail.candles.length > 1;
+    return Response.json(detail, { headers: { "cache-control": complete ? "public, s-maxage=60, stale-while-revalidate=300" : "no-store" } });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : "Token data unavailable." }, { status: 503 });
   }

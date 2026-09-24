@@ -7,6 +7,7 @@ export type MintState = {
   paused: boolean | null;
   transferFee: { bps: number; maxFeeRaw: bigint; epoch: number } | null;
   multiplier: number;
+  multiplierSchedule: MultiplierSchedule;
   currentEpoch: number;
 };
 
@@ -21,6 +22,12 @@ export function activeFee(state: Record<string, unknown>, currentEpoch: number) 
   const older = state.olderTransferFee as FeeSide;
   const side = currentEpoch >= Number(newer.epoch) ? newer : older;
   return { bps: Number(side.transferFeeBasisPoints), maxFeeRaw: BigInt(side.maximumFee), epoch: Number(side.epoch) };
+}
+
+export type MultiplierSchedule = { multiplier: number; newMultiplier: number; effectiveAt: number };
+
+export function scheduledMultiplier(schedule: MultiplierSchedule, nowSec: number): number {
+  return schedule.effectiveAt > 0 && nowSec >= schedule.effectiveAt ? schedule.newMultiplier : schedule.multiplier;
 }
 
 // ScaledUiAmount: the new multiplier applies once its effective timestamp has passed.
@@ -55,6 +62,9 @@ export async function readMintState(mint: string): Promise<MintState> {
     paused: pausable ? Boolean(pausable.paused) : null,
     transferFee: fee ? activeFee(fee, epochInfo.epoch) : null,
     multiplier: scaled ? effectiveMultiplier(scaled, nowSec) : 1,
+    multiplierSchedule: scaled
+      ? { multiplier: Number(scaled.multiplier), newMultiplier: Number(scaled.newMultiplier), effectiveAt: Number(scaled.newMultiplierEffectiveTimestamp ?? 0) }
+      : { multiplier: 1, newMultiplier: 1, effectiveAt: 0 },
     currentEpoch: epochInfo.epoch,
   };
 }

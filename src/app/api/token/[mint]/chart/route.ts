@@ -11,8 +11,12 @@ export async function GET(request: NextRequest, ctx: RouteContext<"/api/token/[m
   } catch {
     return Response.json({ error: "Not a valid Solana mint address." }, { status: 400 });
   }
-  const pool = (await marketSnapshot().catch(() => null))?.quotes.find((q) => q.mint === mint)?.topPool;
+  const market = await marketSnapshot().catch(() => null);
+  if (!market) return Response.json({ error: "Market data unavailable right now." }, { status: 503 });
+  const pool = market.quotes.find((q) => q.mint === mint)?.topPool;
   if (!pool) return Response.json({ error: "No market for this mint." }, { status: 404 });
   const candles = await tokenChart(mint, pool, range as ChartRange);
-  return candles ? Response.json({ range, candles }) : Response.json({ error: "Price history unavailable right now." }, { status: 503 });
+  return candles
+    ? Response.json({ range, candles }, { headers: { "cache-control": "public, s-maxage=300, stale-while-revalidate=600" } })
+    : Response.json({ error: "Price history unavailable right now." }, { status: 503 });
 }
