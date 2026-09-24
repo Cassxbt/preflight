@@ -17,3 +17,7 @@ const entries = registry.entries as LifecycleEntry[];
 export function lifecycleFor(mint: string): LifecycleEntry | undefined {
   return entries.find((e) => e.mint === mint);
 }
+
+export function lifecycleEntries(): LifecycleEntry[] {
+  return entries;
+}

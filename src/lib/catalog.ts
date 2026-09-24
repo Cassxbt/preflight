@@ -7,6 +7,7 @@ const CatalogEntry = z.object({
   contract_address: z.string(),
   markPrice: z.number().positive(),
   tokenPrice: z.number().positive(),
+  image: z.string().url().optional(),
 });
 
 export type CatalogEntry = z.infer<typeof CatalogEntry>;
