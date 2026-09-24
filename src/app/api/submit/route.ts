@@ -1,7 +1,12 @@
 import { z } from "zod";
 import { submitSignedOrder } from "@/lib/submit";
 
-const Body = z.object({ orderId: z.string(), signedTransaction: z.string(), ackedReasons: z.array(z.string()) });
+// A Solana transaction is at most 1232 bytes, so its base64 fits well under 2,000 characters.
+const Body = z.object({
+  orderId: z.string().regex(/^[A-Za-z0-9_-]{8,128}$/),
+  signedTransaction: z.string().max(2000),
+  ackedReasons: z.array(z.string().max(40)).max(20),
+});
 
 export async function POST(request: Request) {
   const parsed = Body.safeParse(await request.json().catch(() => null));

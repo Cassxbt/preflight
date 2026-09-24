@@ -117,6 +117,20 @@ describe("submitSignedOrder", () => {
     expect(JSON.parse((await get("receipts", signature))!)).toMatchObject({ ackedReasons: ["ABOVE_MARK"], jupiterSignatureMatches: true });
   });
 
+  it("stores only acknowledgements of reasons this order disclosed", async () => {
+    const { orderId, signed, signature } = await storedOrder([{ code: "ABOVE_MARK", status: "DISCLOSE", message: "above mark" }]);
+    execute.mockResolvedValueOnce({ ...SUCCESS, signature });
+    await submitSignedOrder(orderId, signed, ["ABOVE_MARK", "<b>anything</b>", "X".repeat(5000)]);
+    expect(JSON.parse((await get("receipts", signature))!).ackedReasons).toEqual(["ABOVE_MARK"]);
+  });
+
+  it("sends Jupiter the bytes it verified, not the client's encoding of them", async () => {
+    const { orderId, signed, signature } = await storedOrder();
+    execute.mockResolvedValueOnce({ ...SUCCESS, signature });
+    expect(await submitSignedOrder(orderId, `${signed}==trailing`, [])).toMatchObject({ ok: true });
+    expect(execute.mock.calls[0][0]).toBe(signed);
+  });
+
   it("keeps submission locks out of the order namespace", async () => {
     const { orderId, signed, signature } = await storedOrder();
     execute.mockResolvedValueOnce({ ...SUCCESS, signature });

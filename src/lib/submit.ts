@@ -65,7 +65,7 @@ export async function submitSignedOrder(orderId: string, signedTxBase64: string,
     orderId,
     signature,
     submittedAt: new Date().toISOString(),
-    ackedReasons: [...new Set(ackedReasons)].sort(),
+    ackedReasons: required.filter((code) => ackedReasons.includes(code)).sort(),
     order: { ...order, unsignedTx: undefined, messageBase64: undefined },
     execute: null as ExecuteResult | null,
   };
@@ -73,7 +73,7 @@ export async function submitSignedOrder(orderId: string, signedTxBase64: string,
 
   let execute: ExecuteResult;
   try {
-    execute = await metaExecute(signedTxBase64, order.route.requestId);
+    execute = await metaExecute(Buffer.from(signed.serialize()).toString("base64"), order.route.requestId);
   } catch {
     return {
       ok: false,
