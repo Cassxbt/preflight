@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { fmtDate, fmtSol, fmtTokens, fmtUsd, shortKey, tokensUi } from "@/lib/format";
 import { buildReceipt } from "@/lib/receipt";
 import { SiteFooter, SiteHeader } from "../../_site/chrome";
@@ -7,8 +8,11 @@ import { Bezel, Cta, Eyebrow } from "../../_site/primitives";
 import { StatusLight } from "../../_site/verdict-card";
 import { ReceiptTicket } from "../../_site/visuals";
 
+// Metadata and the page share one build per request.
+const getReceipt = cache(buildReceipt);
+
 export async function generateMetadata(props: PageProps<"/r/[signature]">): Promise<Metadata> {
-  const receipt = await buildReceipt((await props.params).signature).catch(() => null);
+  const receipt = await getReceipt((await props.params).signature).catch(() => null);
   if (!receipt) return { title: "Receipt not found · Preflight" };
   const usdc = receipt.chainVerified.usdcDebitedRaw ? Number(receipt.chainVerified.usdcDebitedRaw) / 1e6 : null;
   return { title: `Receipt · ${usdc ?? "?"} USDC → ${receipt.symbol ?? "token"} · Preflight` };
@@ -38,7 +42,7 @@ function Group({ title, tag, note, rows }: { title: string; tag: "chain" | "app"
 
 export default async function ReceiptPage(props: PageProps<"/r/[signature]">) {
   const { signature } = await props.params;
-  const receipt = await buildReceipt(signature);
+  const receipt = await getReceipt(signature);
   if (!receipt) notFound();
 
   const { chainVerified: chain, appRecorded: app, issuerAttested: issuer } = receipt;

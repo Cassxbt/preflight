@@ -7,7 +7,11 @@ const CatalogEntry = z.object({
   contract_address: z.string(),
   markPrice: z.number().positive(),
   tokenPrice: z.number().positive(),
-  image: z.string().url().optional(),
+  // Only the issuer's logo path is allowed through, so an unexpected host never breaks image rendering.
+  image: z
+    .string()
+    .optional()
+    .transform((url) => (url && /^https:\/\/(www\.)?prestocks\.com\/logos\//.test(url) ? url : undefined)),
   description: z.string().optional(),
   external_url: z.string().url().optional(),
   markValuation: z.number().optional(),
