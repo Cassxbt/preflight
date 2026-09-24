@@ -107,7 +107,7 @@ export default async function ReceiptPage(props: PageProps<"/r/[signature]">) {
     ? [
         ["Issuer mark", issuer.markPrice !== null ? fmtUsd(issuer.markPrice) : "—"],
         ["Catalog read", issuer.catalogRetrievedAt ? fmtDate(issuer.catalogRetrievedAt, true) : "—"],
-        ["Lifecycle notice", lifecycle?.statement ?? "none on file"],
+        ["Lifecycle notice", lifecycle?.statement ?? app.reasons.find((r) => r.code === "ISSUER_NOTICE")?.message ?? "none on file"],
       ]
     : [["Issuer evidence", "not recorded"]];
 

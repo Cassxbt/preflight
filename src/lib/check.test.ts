@@ -39,7 +39,7 @@ function final(over: Partial<CheckInput> = {}): CheckInput {
     quote: quote({ sizeImpactPct: 0.01, usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n }),
     simulation: ok({ succeeded: true, creditRaw: 1_897_345n, walletSolCostLamports: 6_000 }),
     policy: { maxSolCostLamports: 50_000, maxSolCostPctOfOrder: 0.5, solUsd: 200 },
-    notices: ok({ issuerUrl: "https://www.prestocks.com/anthropic", fetchedAt: NOW, lines: [] }),
+    notices: ok({ issuerUrl: "https://prestocks.com/anthropic", fetchedAt: NOW, lines: [], reviewed: [] }),
     ...over,
   };
 }
@@ -445,25 +445,32 @@ describe("ordering", () => {
 });
 
 describe("unreviewed issuer notices", () => {
-  const NEW_NOTICE = "Anthropic PreStocks tokens must be swapped into $ANTHx before 11:59pm UTC on 1 June 2027, or they will expire worthless.";
-  const notices = (lines: string[]) => ok({ issuerUrl: "https://www.prestocks.com/anthropic", fetchedAt: NOW, lines });
+  const NEW_NOTICE = "🚨 Anthropic has gone public! Anthropic PreStocks tokens must be swapped into $ANTHx before 11:59pm UTC on 1 June 2027, or they will expire worthless.";
+  const SPACEX_BANNER = `⚠️ SpaceX has gone public! ${SPACEX_EVIDENCE.statement} Learn more`;
+  const notices = (lines: string[], reviewed: string[] = []) => ok({ issuerUrl: "https://prestocks.com/anthropic", fetchedAt: NOW, lines, reviewed });
+  const spacex = (lines: string[]) => final({ deadlineAhead: SPACEX_EVIDENCE, issuer: verified(), notices: notices(lines, [SPACEX_BANNER]) });
 
   it("discloses a notice the registry has not reviewed, in the issuer's words, and stays signable", () => {
     const r = runCheck(final({ notices: notices([NEW_NOTICE]) }));
     const reason = r.reasons.find((x) => x.code === "ISSUER_NOTICE");
-    expect(reason).toMatchObject({ status: "DISCLOSE", evidence: { issuerUrl: "https://www.prestocks.com/anthropic", notices: [NEW_NOTICE] } });
+    expect(reason).toMatchObject({ status: "DISCLOSE", evidence: { issuerUrl: "https://prestocks.com/anthropic", notices: [NEW_NOTICE] } });
     expect(reason?.message).toContain(NEW_NOTICE);
     expect(r.signAvailable).toBe(true);
   });
 
-  it("stays quiet when the only notice is the reviewed statement, even with extra words around it", () => {
-    const spacex = final({ deadlineAhead: SPACEX_EVIDENCE, issuer: verified(), notices: notices([`${SPACEX_EVIDENCE.statement} Read more`]) });
-    expect(codes(spacex)).not.toContain("ISSUER_NOTICE");
+  it("stays quiet when the page shows exactly the reviewed banner", () => {
+    expect(codes(spacex([SPACEX_BANNER]))).not.toContain("ISSUER_NOTICE");
   });
 
-  it("discloses a second notice on a registry token", () => {
-    const spacex = final({ deadlineAhead: SPACEX_EVIDENCE, issuer: verified(), notices: notices([SPACEX_EVIDENCE.statement, "Redemption opens 1 March 2027."]) });
-    expect(runCheck(spacex).reasons.find((x) => x.code === "ISSUER_NOTICE")?.evidence).toMatchObject({ notices: ["Redemption opens 1 March 2027."] });
+  it("discloses an amendment added to the reviewed banner itself", () => {
+    const amended = `${SPACEX_BANNER} UPDATE: the deadline has moved forward to 12 December 2026.`;
+    expect(runCheck(spacex([amended])).reasons.find((x) => x.code === "ISSUER_NOTICE")?.evidence).toMatchObject({ notices: [amended] });
+  });
+
+  it("quotes each notice separately and says how many there are", () => {
+    const message = runCheck(spacex([SPACEX_BANNER, "Trading is halted.", "Redemption opens 1 March 2027."])).reasons.find((x) => x.code === "ISSUER_NOTICE")?.message;
+    expect(message).toContain("2 notices");
+    expect(message).toContain("\u201cTrading is halted.\u201d \u201cRedemption opens 1 March 2027.\u201d");
   });
 
   it("marks notices not checked when the issuer page cannot be read, without blocking", () => {

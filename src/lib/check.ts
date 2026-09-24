@@ -32,7 +32,7 @@ export type CheckInput = {
   retired?: LifecycleEvidence;
   deadlineAhead?: LifecycleEvidence;
   issuer?: Outcome<{ fetchedAt: string; mintLinked: boolean; statementPresent: boolean; linkedMints: string[]; captureIntact: boolean }>;
-  notices?: Outcome<{ issuerUrl: string; fetchedAt: string; lines: string[] }>;
+  notices?: Outcome<{ issuerUrl: string; fetchedAt: string; lines: string[]; reviewed: string[] }>;
   catalog: Outcome<{
     listed: boolean;
     symbol?: string;
@@ -197,19 +197,18 @@ export function runCheck(input: CheckInput): CheckResult {
     });
   }
 
-  // The registry holds reviewed terms; anything else the issuer announces is shown in its own words until reviewed.
+  // A notice counts as reviewed only if it matches one on the hashed capture exactly, so an amendment is never absorbed.
   if (input.notices === undefined) {
     if (input.catalog.ok && input.catalog.value.listed) notEvaluated.push("ISSUER_NOTICE");
   } else if (!input.notices.ok) {
     notEvaluated.push("ISSUER_NOTICE");
   } else {
-    const reviewed = normalized(lifecycle?.statement ?? "");
-    const unreviewed = input.notices.value.lines.filter((line) => {
-      const text = normalized(line);
-      return reviewed === "" || !(text.includes(reviewed) || reviewed.includes(text));
-    });
+    const reviewed = new Set(input.notices.value.reviewed.map(normalized));
+    const unreviewed = input.notices.value.lines.filter((line) => !reviewed.has(normalized(line)));
     if (unreviewed.length) {
-      disclose("ISSUER_NOTICE", `The issuer's page carries a notice Preflight has not reviewed: “${unreviewed.join(" ")}”`, {
+      const count = unreviewed.length === 1 ? "a notice" : `${unreviewed.length} notices`;
+      const quoted = unreviewed.map((line) => `“${line}”`).join(" ");
+      disclose("ISSUER_NOTICE", `The issuer's page carries ${count} Preflight has not reviewed: ${quoted}`, {
         issuerUrl: input.notices.value.issuerUrl,
         fetchedAt: input.notices.value.fetchedAt,
         notices: unreviewed,

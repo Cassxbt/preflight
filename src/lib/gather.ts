@@ -5,7 +5,7 @@ import { runCheck, type CheckInput, type Outcome } from "./check";
 import { USDC_MINT } from "./constants";
 import { serverEnv } from "./env";
 import { metaOrder, type MetaOrder } from "./jupiter";
-import { ISSUER_PAGE, readIssuerNotices, verifyIssuerEvidence, type IssuerEvidence } from "./issuer";
+import { issuerPageUrl, readIssuerNotices, verifyIssuerEvidence, type IssuerEvidence } from "./issuer";
 import { lifecycleFor, type LifecycleEntry } from "./lifecycle";
 import { readMintState, type MintState } from "./mintState";
 import { connection, simulate } from "./solana";
@@ -62,10 +62,19 @@ function toCheckMint(state: MintState) {
 // Never quotes or builds a transaction, so it is safe to call without a wallet.
 export async function gatherPreview(mint: string): Promise<{ input: CheckInput; symbol?: string; mintState?: MintState }> {
   const lifecycle = lifecycleFor(mint);
-  const [fetched, mintState, issuer] = await Promise.all([
-    settle(fetchCatalog),
+  const catalogRead = settle(fetchCatalog);
+  // The issuer page is read as soon as the catalog names it, alongside the on-chain read.
+  const pageNotices = lifecycle
+    ? Promise.resolve(undefined)
+    : catalogRead.then((c) => {
+        const url = c.ok ? issuerPageUrl(findExact(c.value, mint)?.external_url ?? "") : null;
+        return url ? settle(() => readIssuerNotices(url, mint)) : undefined;
+      });
+  const [fetched, mintState, issuer, pageRead] = await Promise.all([
+    catalogRead,
     settle(() => readMintState(mint)),
     lifecycle ? settle(() => verifyIssuerEvidence(lifecycle)) : Promise.resolve(undefined),
+    pageNotices,
   ]);
   const catalog: Outcome<Catalog> =
     fetched.ok && fetched.value.unreadableMints.includes(mint) ? { ok: false, error: "the catalog entry for this mint is malformed" } : fetched;
@@ -79,7 +88,7 @@ export async function gatherPreview(mint: string): Promise<{ input: CheckInput; 
       now: new Date().toISOString(),
       ...lifecycleInputs(lifecycle),
       issuer,
-      notices: await noticesFor(lifecycle, issuer, entry?.external_url),
+      notices: lifecycle ? registryNotices(lifecycle, issuer) : entry ? pageRead : undefined,
       catalog: catalog.ok
         ? {
             ok: true,
@@ -98,14 +107,12 @@ export async function gatherPreview(mint: string): Promise<{ input: CheckInput; 
   };
 }
 
-// Registry tokens reuse the page already fetched for their evidence; every other listed token has its own page read.
-async function noticesFor(lifecycle: LifecycleEntry | undefined, issuer: Outcome<IssuerEvidence> | undefined, issuerUrl: string | undefined): Promise<CheckInput["notices"]> {
-  if (lifecycle) {
-    if (!issuer) return undefined;
-    return issuer.ok ? { ok: true, value: { issuerUrl: lifecycle.issuerUrl, fetchedAt: issuer.value.fetchedAt, lines: issuer.value.notices } } : issuer;
-  }
-  if (!issuerUrl || !ISSUER_PAGE.test(issuerUrl)) return undefined;
-  return settle(() => readIssuerNotices(issuerUrl));
+// Registry tokens reuse the page already fetched for their evidence, with the capture's notices as the reviewed set.
+function registryNotices(lifecycle: LifecycleEntry, issuer: Outcome<IssuerEvidence> | undefined): CheckInput["notices"] {
+  if (!issuer) return undefined;
+  if (!issuer.ok) return issuer;
+  const { fetchedAt, notices, reviewedNotices } = issuer.value;
+  return { ok: true, value: { issuerUrl: lifecycle.issuerUrl, fetchedAt, lines: notices, reviewed: reviewedNotices } };
 }
 
 export type PreparedQuote = {
