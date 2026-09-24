@@ -50,6 +50,7 @@ export default async function ReceiptPage(props: PageProps<"/r/[signature]">) {
   const tokens = (raw?: string) => (raw === undefined ? "—" : `${fmtTokens(tokensUi(raw, receipt.decimals, receipt.multiplier))} ${receipt.symbol ?? ""}`);
   const gap = chain.tokenCreditedRaw !== undefined ? (Number(chain.tokenCreditedRaw) / Number(app.expectedNetOutRaw) - 1) * 100 : null;
   const lifecycle = issuer?.lifecycle as { statement?: string } | null | undefined;
+  const unreviewedNotice = app.reasons.find((r) => r.code === "ISSUER_NOTICE")?.message;
   const usdcSpent = chain.usdcDebitedRaw !== undefined ? Number(chain.usdcDebitedRaw) / 1e6 : null;
   const tokensReceived = chain.tokenCreditedRaw !== undefined ? tokensUi(chain.tokenCreditedRaw, receipt.decimals, receipt.multiplier) : null;
   const pricePaid = usdcSpent !== null && tokensReceived ? usdcSpent / tokensReceived : null;
@@ -107,7 +108,8 @@ export default async function ReceiptPage(props: PageProps<"/r/[signature]">) {
     ? [
         ["Issuer mark", issuer.markPrice !== null ? fmtUsd(issuer.markPrice) : "—"],
         ["Catalog read", issuer.catalogRetrievedAt ? fmtDate(issuer.catalogRetrievedAt, true) : "—"],
-        ["Lifecycle notice", lifecycle?.statement ?? app.reasons.find((r) => r.code === "ISSUER_NOTICE")?.message ?? "none on file"],
+        ["Lifecycle notice", lifecycle?.statement ?? "none on file"],
+        ...(unreviewedNotice ? ([["Unreviewed notice", unreviewedNotice]] as [string, React.ReactNode][]) : []),
       ]
     : [["Issuer evidence", "not recorded"]];
 

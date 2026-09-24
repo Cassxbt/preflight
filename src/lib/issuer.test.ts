@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import registry from "@/data/lifecycle.json";
-import { inspectIssuerPage, issuerNotices, issuerPageUrl, pageText, readIssuerNotices, sha256Matches } from "./issuer";
+import { inspectIssuerPage, issuerNotices, issuerPageUrl, pageText, readIssuerNotices, sha256Matches, verifyIssuerEvidence } from "./issuer";
 import type { LifecycleEntry } from "./lifecycle";
 
 const entries = registry.entries as LifecycleEntry[];
@@ -89,8 +89,23 @@ describe("issuerNotices", () => {
     "Neuralink has gone public!",
     "Claims close at the conversion deadline.",
     "Holders migrate to the new mint next week.",
+    "Kalshi swaps to KALSHIx on listing day.",
+    "Figure AI merges with a listed company.",
+    "Acquisition by SpaceX closes Friday.",
+    "Exchange your tokens for shares at 1:1.",
+    "Claim your shares by 30 June 2027.",
   ])("recognises lifecycle wording: %s", (text) => {
     expect(read(`<p>${text}</p>`)).toEqual([text]);
+  });
+
+  it("quotes the text around the lifecycle words when a block is long", () => {
+    const [long] = read(`<p>${"Figure AI builds humanoid robots for warehouses. ".repeat(16)}Tokens will be redeemed on 1 June 2027.</p>`);
+    expect(long).toContain("Tokens will be redeemed on 1 June 2027.");
+    expect(long.startsWith("…")).toBe(true);
+  });
+
+  it("does not treat the word exchange alone as a notice", () => {
+    expect(read("<p>PreStocks is not an exchange operator.</p>")).toEqual([]);
   });
 
   it("shortens a very long notice instead of dropping it", () => {
@@ -132,6 +147,22 @@ describe("readIssuerNotices", () => {
   it("refuses a page that redirected off prestocks.com", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => page(`<a href="https://solscan.io/token/${MINT}">x</a>`, "https://elsewhere.example/anthropic")));
     await expect(readIssuerNotices("https://prestocks.com/redirected", MINT)).rejects.toThrow("left prestocks.com");
+  });
+
+  it("never lets a failed notice read hold the registry evidence read of the same page", async () => {
+    const spacex = entries.find((e) => e.symbol === "SPACEX")!;
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 503, url: spacex.issuerUrl, text: async () => "" })));
+    await expect(readIssuerNotices(spacex.issuerUrl, spacex.mint)).rejects.toThrow("503");
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => page(capture(spacex).toString("utf8"), url)));
+    await expect(verifyIssuerEvidence(spacex)).resolves.toMatchObject({ mintLinked: true, statementPresent: true });
+  });
+
+  it("retries the registry evidence read on the next check after a failure", async () => {
+    const xai = entries.find((e) => e.symbol === "XAI")!;
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 503, url: xai.issuerUrl, text: async () => "" })));
+    await expect(verifyIssuerEvidence(xai)).rejects.toThrow("503");
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => page(capture(xai).toString("utf8"), url)));
+    await expect(verifyIssuerEvidence(xai)).resolves.toMatchObject({ mintLinked: true });
   });
 
   it("shares one request between concurrent readers and remembers a failure briefly", async () => {

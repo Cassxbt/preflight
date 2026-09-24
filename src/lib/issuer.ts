@@ -57,17 +57,26 @@ export function linkedMints(html: string): string[] {
 
 // PreStocks announces lifecycle events in a banner that says what holders must do and by when.
 const LIFECYCLE_WORDS =
-  /\b(expir(e|es|ed|ing|y|ation)|worthless|swap(ped)? (into|for)|swap (your|window)|conver(t|ted|ts|sion)|redeem(ed|able|ing)?|redemption|delist(ed|ing)?|wind(ing)?[- ]down|burn(ed|t)|halt(ed)?|suspend(ed)?|paused|migrat(e|ed|ion)|merged|acquired|gone public|IPO|deadline|settle(d|ment))\b/i;
+  /\b(expir(e|es|ed|ing|y|ation)|worthless|swap(s|ped|ping)? (into|for|to)|swap (your|window)|conver(t|ted|ts|sion)|redeem(ed|able|ing)?|redemption|delist(ed|ing)?|wind(ing)?[- ]down|burn(ed|t)|halt(ed)?|suspend(ed)?|paused|migrat(e|ed|ion)|merge(s|d|r)?|acqui(red|sition)|exchange your|claim(ed)? (your|by)|gone public|IPO|deadline|settle(d|ment))\b/i;
 // Only containers end a block, so inline markup and line breaks never cut a date or amount off a notice.
 const BLOCK_END = /<\/(?:div|p|li|section|article|main|header|footer|aside|nav|table|tr|td|h[1-6])>/i;
 const MAX_NOTICE_CHARS = 600;
+const CONTEXT_BEFORE_MATCH = 200;
+
+// A long block is quoted around its lifecycle words, so the part that matters is never the part cut off.
+function excerpt(text: string): string {
+  if (text.length <= MAX_NOTICE_CHARS) return text;
+  const start = Math.max(0, text.search(LIFECYCLE_WORDS) - CONTEXT_BEFORE_MATCH);
+  const end = Math.min(text.length, start + MAX_NOTICE_CHARS);
+  return `${start > 0 ? "…" : ""}${text.slice(start, end)}${end < text.length ? "…" : ""}`;
+}
 
 export function issuerNotices(html: string): string[] {
   const blocks = visibleMarkup(html)
     .split(BLOCK_END)
     .map(pageText)
     .filter((text) => LIFECYCLE_WORDS.test(text))
-    .map((text) => (text.length > MAX_NOTICE_CHARS ? `${text.slice(0, MAX_NOTICE_CHARS)}…` : text));
+    .map(excerpt);
   return [...new Set(blocks)];
 }
 
@@ -103,33 +112,41 @@ async function requestPage(url: string, timeoutMs: number): Promise<Page> {
   return { html: await res.text(), fetchedAt: new Date().toISOString() };
 }
 
-// Concurrent checks share one request, and a failing page is not retried on every check.
-async function fetchIssuerPage(url: string, timeoutMs = EVIDENCE_TIMEOUT_MS): Promise<Page> {
+// Evidence reads can hold a buy, so they always retry; notice reads only disclose, so a failing page is not retried on every check.
+const READS = {
+  evidence: { timeoutMs: EVIDENCE_TIMEOUT_MS, rememberFailure: false },
+  notices: { timeoutMs: NOTICE_TIMEOUT_MS, rememberFailure: true },
+} as const;
+
+// Concurrent checks of the same kind share one request; the two kinds never share a request or a failure.
+async function fetchIssuerPage(url: string, kind: keyof typeof READS): Promise<Page> {
   const cached = pages.get(url);
   if (cached && Date.now() - Date.parse(cached.fetchedAt) < PAGE_CACHE_MS) return cached;
-  const failed = failures.get(url);
+  const key = `${kind}:${url}`;
+  const failed = failures.get(key);
   if (failed && Date.now() - failed.at < FAILURE_CACHE_MS) throw failed.error;
-  const pending = inflight.get(url);
+  const pending = inflight.get(key);
   if (pending) return pending;
+  const { timeoutMs, rememberFailure } = READS[kind];
   const request = requestPage(url, timeoutMs)
     .then((page) => {
       pages.set(url, page);
-      failures.delete(url);
+      failures.delete(key);
       return page;
     })
     .catch((e: unknown) => {
       const error = e instanceof Error ? e : new Error(String(e));
-      failures.set(url, { error, at: Date.now() });
+      if (rememberFailure) failures.set(key, { error, at: Date.now() });
       throw error;
     })
-    .finally(() => inflight.delete(url));
-  inflight.set(url, request);
+    .finally(() => inflight.delete(key));
+  inflight.set(key, request);
   return request;
 }
 
 // The live page is the evidence; the reviewed capture's hash is its provenance.
 export async function verifyIssuerEvidence(entry: LifecycleEntry): Promise<IssuerEvidence> {
-  const [page, capture] = await Promise.all([fetchIssuerPage(entry.issuerUrl), readCapture(entry)]);
+  const [page, capture] = await Promise.all([fetchIssuerPage(entry.issuerUrl, "evidence"), readCapture(entry)]);
   return {
     fetchedAt: page.fetchedAt,
     captureIntact: capture !== null,
@@ -141,7 +158,7 @@ export async function verifyIssuerEvidence(entry: LifecycleEntry): Promise<Issue
 
 // A page that does not link the token's own mint is not that token's page, so it cannot vouch for an absence of notices.
 export async function readIssuerNotices(issuerUrl: string, mint: string): Promise<IssuerNotices> {
-  const page = await fetchIssuerPage(issuerUrl, NOTICE_TIMEOUT_MS);
+  const page = await fetchIssuerPage(issuerUrl, "notices");
   if (!linkedMints(page.html).includes(mint)) throw new Error(`${issuerUrl} does not link this mint`);
   return { issuerUrl, fetchedAt: page.fetchedAt, lines: issuerNotices(page.html), reviewed: [] };
 }
