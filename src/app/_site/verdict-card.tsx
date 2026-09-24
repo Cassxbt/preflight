@@ -19,6 +19,11 @@ export function StatusLight({ status }: { status: string }) {
   );
 }
 
+function ago(then: string, now: string): string {
+  const minutes = Math.floor((Date.parse(now) - Date.parse(then)) / 60_000);
+  return minutes < 1 ? "just now" : `${minutes} min ago`;
+}
+
 type Props = { symbol: string; mint: string; checkedAt: string; result: CheckResult; logo?: string };
 
 export function VerdictCard({ symbol, mint, checkedAt, result, logo }: Props) {
@@ -54,7 +59,7 @@ export function VerdictCard({ symbol, mint, checkedAt, result, logo }: Props) {
         </ul>
         {statement && <blockquote className="border-l border-hold/50 pl-3 text-[13px] leading-relaxed text-muted">&ldquo;{statement}&rdquo;</blockquote>}
         <div className="flex items-center justify-between border-t border-white/[0.06] pt-4 text-[11px] text-muted">
-          <span>{live ? `Matched on prestocks.com · ${live.slice(11, 19)} UTC` : "Issuer page not verified live"}</span>
+          <span>{live ? `Issuer page matched ${ago(live, checkedAt)}` : "Issuer page not verified live"}</span>
           <span className="font-mono">{result.signAvailable ? "signable" : "no tx built"}</span>
         </div>
       </div>

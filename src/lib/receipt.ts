@@ -70,7 +70,12 @@ function delta(pre: TokenBalance[], post: TokenBalance[], owner: string, mint: s
   return sum(post) - sum(pre);
 }
 
+// A confirmed transaction never changes, so its chain facts are read once per server instance.
+const confirmed = new Map<string, Receipt["chainVerified"]>();
+
 async function readChain(signature: string, wallet: string, mint: string, lastValid: number): Promise<Receipt["chainVerified"]> {
+  const cached = confirmed.get(signature);
+  if (cached) return cached;
   const conn = connection();
   try {
     const tx = await conn.getTransaction(signature, { maxSupportedTransactionVersion: 0, commitment: "confirmed" });
@@ -86,7 +91,7 @@ async function readChain(signature: string, wallet: string, mint: string, lastVa
     const post = (meta?.postTokenBalances ?? []) as TokenBalance[];
     const usdc = delta(pre, post, wallet, USDC_MINT);
     const token = delta(pre, post, wallet, mint);
-    return {
+    const facts: Receipt["chainVerified"] = {
       found: true,
       success: meta ? meta.err === null : undefined,
       blockTime: tx.blockTime ? new Date(tx.blockTime * 1000).toISOString() : undefined,
@@ -97,6 +102,8 @@ async function readChain(signature: string, wallet: string, mint: string, lastVa
       walletSolSpentLamports: meta && payerIndex >= 0 ? meta.preBalances[payerIndex] - meta.postBalances[payerIndex] : undefined,
       networkFeeLamports: meta?.fee,
     };
+    confirmed.set(signature, facts);
+    return facts;
   } catch (e) {
     return { found: false, lookupError: e instanceof Error ? e.message : "chain lookup failed" };
   }

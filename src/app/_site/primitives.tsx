@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 // A machined card: a hairline tray holding an inner plate with its own top highlight.
-export function Bezel({ children, className = "", inner = "" }: { children: React.ReactNode; className?: string; inner?: string }) {
+export function Bezel({ children, className = "", inner = "", solid = false }: { children: React.ReactNode; className?: string; inner?: string; solid?: boolean }) {
   return (
-    <div className={`rounded-[1.75rem] bg-white/[0.03] p-1.5 ring-1 ring-white/[0.07] ${className}`}>
+    <div className={`rounded-[1.75rem] p-1.5 ring-1 ring-white/[0.07] ${solid ? "bg-[#0b0c0f]" : "bg-white/[0.03]"} ${className}`}>
       <div className={`h-full rounded-[calc(1.75rem-0.375rem)] bg-surface shadow-[inset_0_1px_0_rgb(255_255_255/0.06)] ${inner}`}>{children}</div>
     </div>
   );
