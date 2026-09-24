@@ -15,7 +15,7 @@ type ParsedExtension = { extension: string; state: Record<string, unknown> };
 type FeeSide = { epoch: number; maximumFee: number | string; transferFeeBasisPoints: number };
 
 // Token-2022 applies the newer fee schedule only once its epoch is reached.
-function activeFee(state: Record<string, unknown>, currentEpoch: number) {
+export function activeFee(state: Record<string, unknown>, currentEpoch: number) {
   const newer = state.newerTransferFee as FeeSide;
   const older = state.olderTransferFee as FeeSide;
   const side = currentEpoch >= Number(newer.epoch) ? newer : older;
@@ -23,7 +23,7 @@ function activeFee(state: Record<string, unknown>, currentEpoch: number) {
 }
 
 // ScaledUiAmount: the new multiplier applies once its effective timestamp has passed.
-function effectiveMultiplier(state: Record<string, unknown>, nowSec: number): number {
+export function effectiveMultiplier(state: Record<string, unknown>, nowSec: number): number {
   const ts = Number(state.newMultiplierEffectiveTimestamp ?? 0);
   return ts > 0 && nowSec >= ts ? Number(state.newMultiplier) : Number(state.multiplier);
 }

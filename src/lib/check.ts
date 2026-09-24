@@ -157,7 +157,9 @@ export function runCheck(input: CheckInput): CheckResult {
     hold("SOURCE_UNAVAILABLE", `Simulation unavailable: ${input.simulation.error}`, { source: "rpc" });
   } else if (!input.simulation.value.succeeded) {
     hold("SIMULATION_FAILED", `The transaction would fail on chain: ${input.simulation.value.error ?? "unknown error"}.`);
-  } else if (input.policy) {
+  } else if (!input.policy) {
+    notEvaluated.push("HIGH_NETWORK_COST");
+  } else {
     const cost = input.simulation.value.walletSolCostLamports;
     metrics.walletSolCostLamports = cost;
     const orderUsd = input.quote?.ok ? Number(input.quote.value.usdcInRaw) / 1e6 : null;

@@ -102,7 +102,7 @@ async function destinationAccount(wallet: string, mint: string, tokenProgram: st
 
 // Jupiter's automatic slippage sometimes lands at or below the token's own transfer fee,
 // which makes the swap revert on chain (measured: 100 bps against a 1% fee failed 2 of 3 simulations).
-async function orderWithSlippageFloor(mint: string, wallet: string, usdcRaw: bigint, floorBps: number): Promise<MetaOrder> {
+export async function orderWithSlippageFloor(mint: string, wallet: string, usdcRaw: bigint, floorBps: number): Promise<MetaOrder> {
   const req = { inputMint: USDC_MINT, outputMint: mint, amount: usdcRaw, taker: wallet };
   const order = await metaOrder(req);
   if (order.slippageBps === undefined || order.slippageBps >= floorBps) return order;
@@ -112,7 +112,7 @@ async function orderWithSlippageFloor(mint: string, wallet: string, usdcRaw: big
 // Tokens per dollar at this size versus a $1 quote on the same router. Jupiter's own priceImpact
 // field is a USD-value delta that already includes the transfer fee, so it reads ~2-3% even at $1.
 // Returns null (not evaluated) when the reference quote took a different router.
-async function sizeImpactPct(mint: string, usdcRaw: bigint, outRaw: bigint, router: string): Promise<number | null> {
+export async function sizeImpactPct(mint: string, usdcRaw: bigint, outRaw: bigint, router: string): Promise<number | null> {
   const refUsdcRaw = 1_000_000n;
   if (usdcRaw <= refUsdcRaw) return 0;
   try {
