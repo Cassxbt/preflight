@@ -56,6 +56,13 @@ body::after {
 @theme {
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
   --animate-marquee: marquee 40s linear infinite;
+  --animate-fade-up: fade-up 900ms var(--ease-spring) both;
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(1.5rem);
+    }
+  }
   --animate-tick-up: tick-up 1.4s var(--ease-spring);
   --animate-tick-down: tick-down 1.4s var(--ease-spring);
   @keyframes tick-up {
@@ -113,7 +120,8 @@ body::after {
     filter: none;
     transition: none;
   }
-  .animate-marquee {
+  .animate-marquee,
+  .animate-fade-up {
     animation: none;
   }
 }

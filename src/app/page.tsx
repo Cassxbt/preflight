@@ -50,7 +50,6 @@ export default async function Landing() {
       body: "XAI holders had until 12 September 2026 to swap into SPACEX. The mint still exists on chain.",
       mint: XAI,
       logo: XAI_LOGO as string | undefined,
-      span: "md:col-span-7",
     },
     {
       code: "MINT_PAUSED",
@@ -59,7 +58,6 @@ export default async function Landing() {
       body: "The first OPENAI mint is paused under Token-2022, and still carries the name.",
       mint: "PreYKD2kJ5xGgoZ644VPfbEN7sW8bWCUREHr5S3ebV9",
       logo: openai?.image,
-      span: "md:col-span-5",
     },
     {
       code: "NOT_IN_CURRENT_CATALOG",
@@ -68,7 +66,6 @@ export default async function Landing() {
       body: "Only the exact mints in the PreStocks catalog pass. Anything else holds, whatever it calls itself.",
       mint: "6yWNSP6qqhob2WqjBmNb1RuVsBK17RM3SqTYAXYz8KPr",
       logo: undefined,
-      span: "md:col-span-5",
     },
     {
       code: "ABOVE_MARK",
@@ -79,7 +76,6 @@ export default async function Landing() {
         : "Some listed prices sit far above the issuer's own mark.",
       mint: openai?.mint ?? "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF",
       logo: openai?.image,
-      span: "md:col-span-7",
     },
   ];
 
@@ -96,10 +92,8 @@ export default async function Landing() {
         <SiteHeader />
 
         <section className="mx-auto grid max-w-6xl items-center gap-20 px-4 pt-20 pb-24 lg:grid-cols-[1.05fr_1fr] lg:pt-28">
-          <Reveal className="space-y-9">
-            <Eyebrow>
-              Stocklana · PreStocks track<span className="hidden sm:inline"> · Solana mainnet</span>
-            </Eyebrow>
+          <div className="animate-fade-up space-y-9">
+            <Eyebrow>PreStocks · Solana mainnet</Eyebrow>
             <h1 className="font-display text-[4rem] leading-[0.92] tracking-[-0.02em] text-balance sm:text-[5.5rem]">
               Check the token <em className="bg-gradient-to-b from-foreground to-foreground/45 bg-clip-text pr-1 text-transparent">before you sign.</em>
             </h1>
@@ -117,9 +111,9 @@ export default async function Landing() {
               <span className="h-1.5 w-1.5 rounded-full bg-clear shadow-[0_0_8px_var(--clear)]" />
               No wallet needed to check a token.
             </p>
-          </Reveal>
+          </div>
 
-          <Reveal delay={150} className="relative mx-auto w-full max-w-md lg:max-w-none">
+          <div className="relative mx-auto w-full max-w-md animate-fade-up [animation-delay:150ms] lg:max-w-none">
             {openai && (
               <div className="absolute -top-20 -right-10 hidden w-[68%] rotate-[4deg] brightness-75 saturate-50 md:block">
                 <MiniVerdict symbol="OPENAI" logo={openai.image} status="DISCLOSE" code="ABOVE_MARK" line={`Listed ${openai.listedPremiumPct.toFixed(1)}% above the issuer mark`} />
@@ -137,7 +131,7 @@ export default async function Landing() {
                 <Bezel inner="p-8 text-muted">The live check could not run just now. Open the app to try it.</Bezel>
               )}
             </div>
-          </Reveal>
+          </div>
         </section>
 
         {tokens.length > 0 && (
@@ -148,7 +142,7 @@ export default async function Landing() {
           </div>
         )}
 
-        <section className="mx-auto max-w-6xl space-y-14 px-4 py-20 md:py-32">
+        <section className="mx-auto max-w-6xl space-y-14 px-4 py-16 md:py-24">
           <Heading
             eyebrow="The problem"
             title="Your wallet shows a price. It does not show the issuer."
@@ -198,7 +192,7 @@ export default async function Landing() {
         </section>
 
         <section id="how" className="scroll-mt-24 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl space-y-14 px-4 py-20 md:py-32">
+          <div className="mx-auto max-w-6xl space-y-14 px-4 py-16 md:py-24">
             <Heading
               eyebrow="How it works"
               title="One gate between the quote and your signature."
@@ -244,15 +238,15 @@ export default async function Landing() {
         </section>
 
         <section className="border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl space-y-14 px-4 py-20 md:py-32">
+          <div className="mx-auto max-w-6xl space-y-14 px-4 py-16 md:py-24">
             <Heading
               eyebrow="Try to make it buy"
-              title="Four tokens a wallet would show you."
+              title="Four tokens Preflight stops or flags."
               lead="Each opens in the app and runs live against the issuer, the chain and Jupiter. No wallet needed."
             />
-            <div className="grid gap-4 md:grid-cols-12">
+            <div className="grid gap-4 md:grid-cols-2">
               {refusals.map((r, i) => (
-                <Reveal key={r.code} delay={i * 80} className={`h-full ${r.span}`}>
+                <Reveal key={r.code} delay={i * 80} className="h-full">
                   <Link href={`/app?mint=${r.mint}`} className="group block h-full transition-transform duration-700 ease-spring hover:-translate-y-1">
                     <Bezel className="h-full" inner="flex h-full flex-col p-7">
                       <div className="flex items-center justify-between gap-4">
@@ -260,7 +254,7 @@ export default async function Landing() {
                           {r.logo ? (
                             <Image src={r.logo} alt="" width={28} height={28} className="rounded-full ring-1 ring-white/10" />
                           ) : (
-                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.06] font-mono text-[11px] text-muted ring-1 ring-white/10">?</span>
+                            <span className="h-7 w-7 rounded-full border border-dashed border-hold/50" />
                           )}
                           <span className="font-mono text-[11px] text-muted">
                             {r.mint.slice(0, 4)}…{r.mint.slice(-4)}
@@ -286,7 +280,7 @@ export default async function Landing() {
         </section>
 
         <section id="stack" className="scroll-mt-24 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl space-y-14 px-4 py-20 md:py-32">
+          <div className="mx-auto max-w-6xl space-y-14 px-4 py-16 md:py-24">
             <Heading eyebrow="Built on" title="Remove any layer and Preflight breaks." lead="Each dependency supplies a fact the gate cannot get anywhere else." />
             <Reveal>
               <Architecture />
@@ -295,7 +289,7 @@ export default async function Landing() {
         </section>
 
         <section id="proof" className="scroll-mt-24 border-t border-white/[0.06]">
-          <div className="mx-auto grid max-w-6xl items-center gap-16 px-4 py-20 md:py-32 lg:grid-cols-2">
+          <div className="mx-auto grid max-w-6xl items-center gap-16 px-4 py-16 md:py-24 lg:grid-cols-2">
             <div className="space-y-8">
               <Heading
                 eyebrow="Proof"
@@ -314,12 +308,12 @@ export default async function Landing() {
         </section>
 
         <section id="limits" className="scroll-mt-24 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl space-y-14 px-4 py-20 md:py-32">
+          <div className="mx-auto max-w-6xl space-y-14 px-4 py-16 md:py-24">
             <Heading eyebrow="Honesty" title="What Preflight proves, and what it does not." />
             <div className="grid gap-4 md:grid-cols-2">
               {[
                 {
-                  label: "Guarantees",
+                  label: "What it enforces",
                   dot: "bg-clear",
                   tone: "text-clear",
                   items: [
