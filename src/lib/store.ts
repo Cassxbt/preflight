@@ -68,7 +68,10 @@ function fileStore(): Store {
 function selectStore(): Store {
   const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
-  return url && token ? redisStore(new Redis({ url, token, automaticDeserialization: false })) : fileStore();
+  if (url && token) return redisStore(new Redis({ url, token, automaticDeserialization: false }));
+  // Serverless instances do not share a disk, so file locks and receipts would silently stop holding.
+  if (process.env.VERCEL) throw new Error("Redis is not configured for this deployment");
+  return fileStore();
 }
 
 let store: Store | undefined;
