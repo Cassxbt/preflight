@@ -142,7 +142,7 @@ export function runCheck(input: CheckInput): CheckResult {
     hold("SOURCE_UNAVAILABLE", `On-chain mint state unavailable: ${input.mintState.error}`, { source: "rpc" });
     notEvaluated.push("MINT_PAUSED");
   } else if (input.mintState.value.paused === true) {
-    hold("MINT_PAUSED", "The token's issuer has paused this mint (Token-2022 PausableConfig).");
+    hold("MINT_PAUSED", "This mint is paused (Token-2022 PausableConfig), so transfers are blocked.");
   }
 
   if (input.destAccount === undefined) {

@@ -35,6 +35,7 @@ export type StoredOrder = {
   check: CheckResult;
   verdictHash: string;
   route: { router: string; requestId: string; feeBps: number; feeMint: string; slippageBps?: number; lastValidBlockHeight?: number; expireAt?: string };
+  mark: { price: number | null; retrievedAt: string | null };
   expected: { netOutRaw: string; minOutRaw: string; walletSolCostLamports: number; decimals: number; multiplier: number; feeBps: number | null };
   unsignedTx: string;
   messageBase64: string;
@@ -110,6 +111,10 @@ export async function createFinalOrder(mintInput: string, walletInput: string, u
       slippageBps: prepared.order.slippageBps,
       lastValidBlockHeight: prepared.order.lastValidBlockHeight,
       expireAt: prepared.order.expireAt,
+    },
+    mark: {
+      price: input.catalog.ok ? (input.catalog.value.markPrice ?? null) : null,
+      retrievedAt: input.catalog.ok ? input.catalog.value.retrievedAt : null,
     },
     expected: {
       netOutRaw: prepared.creditRaw.toString(),

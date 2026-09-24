@@ -6,16 +6,16 @@ import { VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { CheckResult, Reason } from "@/lib/check";
+import type { CheckResult } from "@/lib/check";
 import { fmtSol, fmtTokens, tokensUi } from "@/lib/format";
+import { CatalogTable, type CatalogView } from "./catalog-table";
+import { NotChecked, ReasonList, signedPct, StatusBadge, utc } from "./ui";
 
-const EXAMPLES = [
-  { label: "XAI (retired)", mint: "PreC1KtJ1sBPPqaeeqL6Qb15GTLCYVvyYEwxhdfTwfx" },
-  { label: "ANTHROPIC", mint: "Pren1FvFX6J3E4kXhJuCiAD5aDmGEb7qJRncwA8Lkhw" },
-  { label: "OPENAI", mint: "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF" },
-  { label: "SPACEX", mint: "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh" },
-  { label: "Outdated OPENAI", mint: "PreYKD2kJ5xGgoZ644VPfbEN7sW8bWCUREHr5S3ebV9" },
-  { label: "Impostor", mint: "6yWNSP6qqhob2WqjBmNb1RuVsBK17RM3SqTYAXYz8KPr" },
+const XAI = "PreC1KtJ1sBPPqaeeqL6Qb15GTLCYVvyYEwxhdfTwfx";
+
+const OFF_CATALOG_EXAMPLES = [
+  { label: "Paused v1 OPENAI mint", mint: "PreYKD2kJ5xGgoZ644VPfbEN7sW8bWCUREHr5S3ebV9" },
+  { label: "A mint not in the catalog", mint: "6yWNSP6qqhob2WqjBmNb1RuVsBK17RM3SqTYAXYz8KPr" },
 ];
 
 type Preview = CheckResult & { mint: string; symbol: string | null; checkedAt: string };
@@ -27,7 +27,8 @@ type Order = {
   usdcInRaw: string;
   check: CheckResult;
   verdictHash: string;
-  expected: { netOutRaw: string; minOutRaw: string; walletSolCostLamports: number; decimals: number; multiplier: number };
+  mark: { price: number | null; retrievedAt: string | null };
+  expected: { netOutRaw: string; minOutRaw: string; walletSolCostLamports: number; decimals: number; multiplier: number; feeBps: number | null };
   transaction: string;
   router: string;
 };
@@ -53,30 +54,6 @@ function writePending(signature: string | null) {
 const fromBase64 = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 const toBase64 = (bytes: Uint8Array) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
 
-const STATUS_STYLE: Record<string, string> = {
-  CLEAR: "bg-emerald-600 text-white",
-  DISCLOSE: "bg-amber-500 text-black",
-  HOLD: "bg-red-600 text-white",
-};
-
-function StatusBadge({ status }: { status: string }) {
-  return <span className={`rounded px-2 py-0.5 font-mono text-sm font-semibold ${STATUS_STYLE[status] ?? ""}`}>{status}</span>;
-}
-
-function Reasons({ reasons }: { reasons: Reason[] }) {
-  if (!reasons.length) return <p className="text-sm opacity-70">No configured warning triggered at this size and time.</p>;
-  return (
-    <ul className="space-y-2">
-      {reasons.map((r) => (
-        <li key={r.code} className="text-sm">
-          <StatusBadge status={r.status} /> <span className="font-mono font-semibold">{r.code}</span>
-          <p className="mt-1 opacity-80">{r.message}</p>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 function useSecondsLeft(expiresAt: string | undefined): number {
   const [secondsLeft, setSecondsLeft] = useState(0);
   useEffect(() => {
@@ -92,9 +69,11 @@ function useSecondsLeft(expiresAt: string | undefined): number {
   return expiresAt ? secondsLeft : 0;
 }
 
-export default function Checker() {
+const button = "rounded bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-40";
+
+export default function Checker({ catalog }: { catalog: CatalogView | null }) {
   const { publicKey, signTransaction } = useWallet();
-  const [mint, setMint] = useState(EXAMPLES[0].mint);
+  const [mint, setMint] = useState(XAI);
   const [usdc, setUsdc] = useState("2");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
@@ -111,11 +90,15 @@ export default function Checker() {
     return () => clearTimeout(restore);
   }, []);
 
-  function reset() {
-    setPreview(null);
+  function clearOrder() {
     setOrder(null);
     setHeldOrder(null);
     setAcked([]);
+  }
+
+  function reset() {
+    setPreview(null);
+    clearOrder();
     setError(null);
     setSignature(null);
   }
@@ -125,11 +108,11 @@ export default function Checker() {
     setPending(null);
   }
 
-  async function runPreview() {
+  async function runPreview(target = mint) {
     reset();
     setBusy("Checking");
     try {
-      const res = await fetch(`/api/check?mint=${encodeURIComponent(mint.trim())}`);
+      const res = await fetch(`/api/check?mint=${encodeURIComponent(target.trim())}`);
       const body = await res.json();
       if (!res.ok) setError(body.error ?? "Check failed.");
       else setPreview(body);
@@ -140,11 +123,14 @@ export default function Checker() {
     }
   }
 
+  function pick(target: string) {
+    setMint(target);
+    void runPreview(target);
+  }
+
   async function prepareOrder() {
     if (!publicKey) return;
-    setOrder(null);
-    setHeldOrder(null);
-    setAcked([]);
+    clearOrder();
     setError(null);
     setBusy("Quoting and simulating");
     try {
@@ -197,58 +183,59 @@ export default function Checker() {
   const disclosures = order?.check.reasons.filter((r) => r.status === "DISCLOSE") ?? [];
   const allAcked = disclosures.every((r) => acked.includes(r.code));
   const canSign = !!order && secondsLeft > 0 && allAcked && !busy && !signature && !pending;
+  const previewBadge = preview && preview.status === "CLEAR" ? "PREVIEW" : preview?.status;
+  const ui = (raw: string) => (order ? fmtTokens(tokensUi(raw, order.expected.decimals, order.expected.multiplier)) : "");
 
   return (
     <div className="space-y-8">
+      {catalog ? (
+        <CatalogTable catalog={catalog} selected={mint} onPick={pick} />
+      ) : (
+        <p className="text-sm opacity-70">The PreStocks catalog could not be read just now. You can still check a mint by address.</p>
+      )}
+
       <section className="space-y-3">
         <label className="block text-sm font-semibold" htmlFor="mint">
-          Token mint address
+          Or check any mint address
         </label>
-        <input
-          id="mint"
-          value={mint}
-          onChange={(e) => {
-            setMint(e.target.value);
-            reset();
-          }}
-          className="w-full rounded border border-current/20 bg-transparent px-3 py-2 font-mono text-sm"
-          spellCheck={false}
-        />
-        <div className="flex flex-wrap gap-2">
-          {EXAMPLES.map((ex) => (
-            <button
-              key={ex.mint}
-              onClick={() => {
-                setMint(ex.mint);
-                reset();
-              }}
-              className={`rounded border px-2 py-1 text-xs ${ex.mint === mint ? "border-current" : "border-current/20 opacity-70"}`}
-            >
+        <div className="flex gap-2">
+          <input
+            id="mint"
+            value={mint}
+            onChange={(e) => {
+              setMint(e.target.value);
+              reset();
+            }}
+            className="min-w-0 flex-1 rounded border border-current/20 bg-transparent px-3 py-2 font-mono text-sm"
+            spellCheck={false}
+          />
+          <button onClick={() => runPreview()} disabled={!!busy} className={button}>
+            Check
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="py-1 opacity-60">Try:</span>
+          {OFF_CATALOG_EXAMPLES.map((ex) => (
+            <button key={ex.mint} onClick={() => pick(ex.mint)} className="rounded border border-current/20 px-2 py-1 opacity-80 hover:opacity-100">
               {ex.label}
             </button>
           ))}
         </div>
-        <button onClick={runPreview} disabled={!!busy} className="rounded bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-50">
-          Check token
-        </button>
       </section>
 
       {busy && <p className="text-sm opacity-70">{busy}…</p>}
       {error && <p className="rounded border border-red-600/50 p-3 text-sm text-red-600">{error}</p>}
 
-      {preview && (
+      {preview && previewBadge && (
         <section className="space-y-3 rounded border border-current/15 p-4">
-          <div className="flex items-center gap-3">
-            <StatusBadge status={preview.status} />
-            <span className="font-semibold">{preview.symbol ?? "Unknown token"}</span>
-            <span className="text-xs opacity-60">preview, checked {new Date(preview.checkedAt).toLocaleTimeString()}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            <StatusBadge status={previewBadge} />
+            <span className="font-semibold">{preview.symbol ?? "Unlisted mint"}</span>
+            <span className="font-mono text-xs opacity-50">{preview.mint}</span>
           </div>
-          <Reasons reasons={preview.reasons} />
-          {preview.status !== "HOLD" && (
-            <p className="text-xs opacity-60">
-              Preview covers issuer lifecycle, catalog listing and mint state. Price, route and cost are checked when you prepare an order.
-            </p>
-          )}
+          <ReasonList reasons={preview.reasons} empty="No warning in the checks that run without a wallet." />
+          {preview.status !== "HOLD" && <NotChecked codes={preview.notEvaluated} />}
+          <p className="text-xs opacity-50">Checked at {utc(preview.checkedAt)}, without a wallet. Nothing can be signed from this preview.</p>
         </section>
       )}
 
@@ -257,7 +244,7 @@ export default function Checker() {
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="block text-sm font-semibold" htmlFor="usdc">
-                Amount (USDC, max 5)
+                Amount in USDC
               </label>
               <input
                 id="usdc"
@@ -266,19 +253,19 @@ export default function Checker() {
                 max="5"
                 step="0.5"
                 value={usdc}
-                onChange={(e) => setUsdc(e.target.value)}
+                onChange={(e) => {
+                  setUsdc(e.target.value);
+                  clearOrder();
+                }}
                 className="w-28 rounded border border-current/20 bg-transparent px-3 py-2 font-mono text-sm"
               />
             </div>
             <WalletMultiButton />
-            <button
-              onClick={prepareOrder}
-              disabled={!publicKey || !!busy || !!signature || !!pending}
-              className="rounded bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-50"
-            >
+            <button onClick={prepareOrder} disabled={!publicKey || !!busy || !!signature || !!pending} className={button}>
               Prepare order
             </button>
           </div>
+          <p className="text-xs opacity-50">Orders are capped at 5 USDC while Preflight is a hackathon build.</p>
         </section>
       )}
 
@@ -288,7 +275,7 @@ export default function Checker() {
             <StatusBadge status="HOLD" />
             <span className="text-sm">No transaction was built for you to sign.</span>
           </div>
-          <Reasons reasons={heldOrder.reasons} />
+          <ReasonList reasons={heldOrder.reasons} empty="" />
         </section>
       )}
 
@@ -305,31 +292,56 @@ export default function Checker() {
           </div>
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
             <dt className="opacity-70">You receive (simulated)</dt>
-            <dd className="font-mono">{fmtTokens(tokensUi(order.expected.netOutRaw, order.expected.decimals, order.expected.multiplier))} {order.symbol}</dd>
-            <dt className="opacity-70">Minimum if swap succeeds</dt>
             <dd className="font-mono">
-              {fmtTokens(tokensUi(order.expected.minOutRaw, order.expected.decimals, order.expected.multiplier))} {order.symbol}
+              {ui(order.expected.netOutRaw)} {order.symbol}
+            </dd>
+            <dt className="opacity-70">Minimum if the swap succeeds</dt>
+            <dd className="font-mono">
+              {ui(order.expected.minOutRaw)} {order.symbol}
               {order.check.metrics.worstPremiumPct !== undefined &&
-                ` (up to $${order.check.metrics.worstPrice?.toFixed(2)}, ${order.check.metrics.worstPremiumPct >= 0 ? "+" : ""}${order.check.metrics.worstPremiumPct.toFixed(2)}% vs mark)`}
+                ` (up to $${order.check.metrics.worstPrice?.toFixed(2)}, ${signedPct(order.check.metrics.worstPremiumPct, 2)} vs mark)`}
             </dd>
             <dt className="opacity-70">Price per token</dt>
             <dd className="font-mono">
               ${order.check.metrics.executablePrice?.toFixed(2)}
-              {order.check.metrics.premiumPct !== undefined && ` (${order.check.metrics.premiumPct >= 0 ? "+" : ""}${order.check.metrics.premiumPct.toFixed(2)}% vs issuer mark)`}
+              {order.check.metrics.premiumPct !== undefined && ` (${signedPct(order.check.metrics.premiumPct, 2)} vs mark)`}
             </dd>
+            {order.mark.price !== null && order.mark.retrievedAt && (
+              <>
+                <dt className="opacity-70">Issuer mark</dt>
+                <dd className="font-mono">
+                  ${order.mark.price.toFixed(2)} <span className="opacity-60">read {utc(order.mark.retrievedAt)}</span>
+                </dd>
+              </>
+            )}
+            {order.expected.feeBps !== null && (
+              <>
+                <dt className="opacity-70">Token transfer fee</dt>
+                <dd className="font-mono">
+                  {(order.expected.feeBps / 100).toFixed(2)}% <span className="opacity-60">read on chain, already deducted above</span>
+                </dd>
+              </>
+            )}
+            {order.expected.multiplier !== 1 && (
+              <>
+                <dt className="opacity-70">Display multiplier</dt>
+                <dd className="font-mono">
+                  ×{order.expected.multiplier} <span className="opacity-60">Token-2022 scaled UI amount</span>
+                </dd>
+              </>
+            )}
             <dt className="opacity-70">Wallet SOL cost</dt>
             <dd className="font-mono">{fmtSol(order.expected.walletSolCostLamports)}</dd>
             <dt className="opacity-70">Route</dt>
             <dd className="font-mono">Jupiter ({order.router})</dd>
           </dl>
-          <p className="text-xs opacity-60">
-            Below the minimum the swap reverts and you keep your USDC, but the network fee is still charged.
-          </p>
-          <Reasons reasons={order.check.reasons} />
+          <p className="text-xs opacity-60">Below the minimum the swap reverts and you keep your USDC, but the network fee is still charged.</p>
+          <ReasonList reasons={order.check.reasons} empty="No configured warning triggered at this size and time." />
+          <NotChecked codes={order.check.notEvaluated} />
           {disclosures.length > 0 && (
             <div className="space-y-2">
-              {disclosures.map((r) => (
-                <label key={r.code} className="flex items-start gap-2 text-sm">
+              {disclosures.map((r, i) => (
+                <label key={`${r.code}-${i}`} className="flex items-start gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={acked.includes(r.code)}
@@ -343,12 +355,12 @@ export default function Checker() {
               ))}
             </div>
           )}
+          <p className="rounded border border-current/15 p-3 text-xs opacity-80">
+            PreStocks says its tokens &ldquo;confer no ownership, voting, dividend, information, or other legal rights&rdquo; and &ldquo;are not
+            available in the U.S., to U.S. persons, or to other ineligible persons.&rdquo; Preflight does not determine your eligibility.
+          </p>
           <div className="flex items-center gap-3">
-            <button
-              onClick={signAndSubmit}
-              disabled={!canSign}
-              className="rounded bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-50"
-            >
+            <button onClick={signAndSubmit} disabled={!canSign} className={button}>
               Sign and buy
             </button>
             {secondsLeft === 0 && !signature && !pending && (
