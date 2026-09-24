@@ -75,7 +75,7 @@ export function PremiumChart({ tokens, retrievedAt }: { tokens: Token[]; retriev
           </div>
         );
       })}
-      <div className="grid grid-cols-[6.5rem_1fr_3.5rem] gap-3 pt-1 font-mono text-[10px] text-muted">
+      <div className="grid grid-cols-[6.5rem_1fr_3.5rem] gap-3 pt-1 font-mono text-[9px] whitespace-nowrap text-muted sm:text-[10px]">
         <span />
         <span className="flex justify-between">
           <span>below mark</span>
@@ -92,7 +92,7 @@ export function PremiumChart({ tokens, retrievedAt }: { tokens: Token[]; retriev
 export function SwapComparison({ reasons, statement }: { reasons: Reason[]; statement: string | null }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.15fr]">
-      <Bezel inner="flex h-full flex-col p-6">
+      <Bezel inner="p-6">
         <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">A swap screen</p>
         <div className="mt-6 space-y-2">
           <div className="rounded-2xl bg-raised p-4 ring-1 ring-white/[0.05]">
@@ -113,7 +113,7 @@ export function SwapComparison({ reasons, statement }: { reasons: Reason[]; stat
           </div>
           <div className="rounded-2xl bg-white/[0.08] py-3.5 text-center text-sm font-semibold text-muted ring-1 ring-white/10">Swap</div>
         </div>
-        <p className="mt-auto pt-6 text-sm text-muted">Illustration. A swap screen asks whether a route exists. It does not ask the issuer.</p>
+        <p className="mt-6 text-sm text-muted">An illustrative swap screen: it checks that a route exists, not what the issuer says.</p>
       </Bezel>
       <div className="rounded-[1.75rem] bg-hold/[0.04] p-1.5 ring-1 ring-hold/25">
         <div className="h-full rounded-[calc(1.75rem-0.375rem)] bg-surface p-6 shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]">
@@ -241,7 +241,7 @@ function Perforation() {
   );
 }
 
-export function ReceiptTicket({ receipt }: { receipt: Receipt }) {
+export function ReceiptTicket({ receipt, tilt = true }: { receipt: Receipt; tilt?: boolean }) {
   const { chainVerified: chain, appRecorded: app } = receipt;
   const tokens = (raw?: string) => (raw === undefined ? "—" : fmtTokens(tokensUi(raw, receipt.decimals, receipt.multiplier)));
   const gap = chain.tokenCreditedRaw !== undefined ? (Number(chain.tokenCreditedRaw) / Number(app.expectedNetOutRaw) - 1) * 100 : null;
@@ -254,7 +254,9 @@ export function ReceiptTicket({ receipt }: { receipt: Receipt }) {
     ["Verdict", app.status, "app"],
   ];
   return (
-    <div className="relative mx-auto max-w-md -rotate-1 rounded-[1.5rem] bg-[#f4f1ea] p-7 text-[#15161a] shadow-[0_40px_80px_-20px_rgb(0_0_0/0.8)] transition-transform duration-700 ease-spring hover:rotate-0">
+    <div
+      className={`relative mx-auto w-full max-w-md rounded-[1.5rem] bg-[#f4f1ea] p-7 text-[#15161a] shadow-[0_40px_80px_-20px_rgb(0_0_0/0.8)] transition-transform duration-700 ease-spring ${tilt ? "-rotate-1 hover:rotate-0" : ""}`}
+    >
       <div className="flex items-center justify-between gap-4">
         <p className="font-semibold tracking-tight">Preflight receipt</p>
         <p className="font-mono text-[10px] tracking-wider text-[#15161a]/60 uppercase">{chain.blockTime ? fmtDate(chain.blockTime) : "pending"}</p>
