@@ -1,5 +1,4 @@
 import { PublicKey } from "@solana/web3.js";
-import { TOKEN_2022_PROGRAM_ID } from "./constants";
 import { connection } from "./solana";
 
 export type MintState = {
@@ -55,8 +54,4 @@ export async function readMintState(mint: string): Promise<MintState> {
     multiplier: scaled ? effectiveMultiplier(scaled, nowSec) : 1,
     currentEpoch: epochInfo.epoch,
   };
-}
-
-export function isToken2022(state: MintState): boolean {
-  return state.program === TOKEN_2022_PROGRAM_ID;
 }

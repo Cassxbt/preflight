@@ -1,8 +1,4 @@
 export const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-export const USDC_DECIMALS = 6;
-
-export const MEMO_PROGRAM_ID = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
-export const TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
 
 export const PRESTOCKS_CATALOG_URL = "https://prestocks.com/api/prestocks";
 export const JUPITER_SWAP_BASE = "https://api.jup.ag/swap/v2";

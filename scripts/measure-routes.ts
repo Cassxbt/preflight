@@ -2,8 +2,9 @@
 // Nothing is signed or sent. Usage: npx tsx --env-file=.env.local scripts/measure-routes.ts [usdc] [mint]
 import { VersionedTransaction } from "@solana/web3.js";
 import { USDC_MINT } from "../src/lib/constants";
-import { metaOrder, routerBuild } from "../src/lib/jupiter";
-import { assembleRouterTransaction, connection, simulate, tokenAccountsByOwner } from "../src/lib/solana";
+import { metaOrder } from "../src/lib/jupiter";
+import { connection, simulate } from "../src/lib/solana";
+import { assembleRouterTransaction, routerBuild, tokenAccountsByOwner } from "./router-path";
 
 const ANTHROPIC = "Pren1FvFX6J3E4kXhJuCiAD5aDmGEb7qJRncwA8Lkhw";
 
