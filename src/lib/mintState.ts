@@ -10,6 +10,8 @@ export type MintState = {
   currentEpoch: number;
 };
 
+const TOKEN_PROGRAMS = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"];
+
 type ParsedExtension = { extension: string; state: Record<string, unknown> };
 type FeeSide = { epoch: number; maximumFee: number | string; transferFeeBasisPoints: number };
 
@@ -35,8 +37,9 @@ export async function readMintState(mint: string): Promise<MintState> {
   ]);
   const value = info.value;
   if (!value) throw new Error(`Mint ${mint} not found on chain`);
-  const data = value.data as { parsed?: { info: { decimals: number; extensions?: ParsedExtension[] } } };
-  if (!data.parsed) throw new Error(`Mint ${mint} is not a parsable token mint`);
+  const data = value.data as { parsed?: { type?: string; info: { decimals: number; extensions?: ParsedExtension[] } } };
+  const owner = value.owner.toBase58();
+  if (!data.parsed || data.parsed.type !== "mint" || !TOKEN_PROGRAMS.includes(owner)) throw new Error(`${mint} is not a token mint`);
 
   const extensions = data.parsed.info.extensions ?? [];
   const byName = (name: string) => extensions.find((e) => e.extension === name)?.state;

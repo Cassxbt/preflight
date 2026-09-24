@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { PublicKey } from "@solana/web3.js";
 import { canonicalJson, sha256Hex } from "./canonical";
 import { runCheck, type CheckResult } from "./check";
 import { MAX_ORDER_USDC } from "./constants";
@@ -45,8 +46,10 @@ export type OrderResponse =
   | { ok: true; order: Omit<StoredOrder, "unsignedTx" | "messageBase64" | "route"> & { transaction: string; router: string } }
   | { ok: false; status: "HOLD" | "ERROR"; check?: CheckResult; error?: string };
 
+const MIN_ORDER_USDC = 0.01;
+
 export function usdcToRaw(usdc: number): bigint {
-  if (!Number.isFinite(usdc) || usdc <= 0) throw new Error("Amount must be a positive number of USDC");
+  if (!Number.isFinite(usdc) || usdc < MIN_ORDER_USDC) throw new Error(`Amount must be at least ${MIN_ORDER_USDC} USDC`);
   if (usdc > MAX_ORDER_USDC) throw new Error(`Amount exceeds the ${MAX_ORDER_USDC} USDC per-order limit`);
   return BigInt(Math.round(usdc * 1e6));
 }
@@ -54,6 +57,7 @@ export function usdcToRaw(usdc: number): bigint {
 export async function createFinalOrder(mintInput: string, walletInput: string, usdc: number): Promise<OrderResponse> {
   const mint = parsePublicKey(mintInput);
   const wallet = parsePublicKey(walletInput);
+  if (!PublicKey.isOnCurve(new PublicKey(wallet).toBytes())) throw new Error("Wallet must be a signing address, not a program-derived address");
   const usdcRaw = usdcToRaw(usdc);
 
   const { input, prepared } = await gatherForOrder(mint, wallet, usdcRaw);
