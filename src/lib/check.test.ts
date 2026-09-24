@@ -211,6 +211,39 @@ describe("acceptance 4: unknown, unavailable, paused, frozen", () => {
     expect(codes(final({ destAccount: ok({ exists: false, frozen: true }) }))).toEqual([]);
   });
 
+  it("holds when the wallet holds less USDC than the order", () => {
+    const r = runCheck(final({ funds: ok({ usdcBalanceRaw: 1_500_000n, usdcRequiredRaw: 2_000_000n }) }));
+    expect(r.reasons[0]).toMatchObject({ code: "INSUFFICIENT_USDC", status: "HOLD" });
+    expect(r.reasons[0].message).toBe("Your wallet holds 1.5 USDC; this order needs 2.");
+    expect(runCheck(final({ funds: ok({ usdcBalanceRaw: 2_000_000n, usdcRequiredRaw: 2_000_000n }) })).status).toBe("CLEAR");
+  });
+
+  it("holds when the USDC balance cannot be read", () => {
+    expect(runCheck(final({ funds: fail("rpc down") })).reasons[0]).toMatchObject({ code: "SOURCE_UNAVAILABLE", evidence: { source: "rpc" } });
+  });
+
+  it("holds when the route exists but credits nothing", () => {
+    const r = runCheck(
+      final({
+        quote: quote({ usdcInRaw: 2_000_000n, netOutRaw: 0n, minOutRaw: 0n }),
+        simulation: ok({ succeeded: true, creditRaw: 0n, walletSolCostLamports: 6_000 }),
+      }),
+    );
+    expect(r).toMatchObject({ status: "HOLD", signAvailable: false });
+    expect(r.reasons.map((x) => x.code)).toContain("SIMULATION_FAILED");
+    expect(r.notEvaluated).toContain("ABOVE_MARK");
+  });
+
+  it("names Jupiter's reason when no route exists", () => {
+    const r = runCheck(final({ quote: ok({ hasRoute: false, detail: "No routes found", sizeImpactPct: null, usdcInRaw: 2_000_000n, netOutRaw: 0n, minOutRaw: null }) }));
+    expect(r.reasons[0].message).toBe("No executable route for this token at this size (Jupiter: No routes found).");
+  });
+
+  it("does not offer signing when the worst-case price could not be evaluated", () => {
+    const r = runCheck(final({ quote: quote({ usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n, minOutRaw: null }) }));
+    expect(r.signAvailable).toBe(false);
+  });
+
   it("gives each failure a distinct, non-signing result", () => {
     const failures = [
       final({ catalog: ok({ listed: false, retrievedAt: NOW }) }),

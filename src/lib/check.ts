@@ -7,6 +7,7 @@ export type ReasonCode =
   | "NOT_IN_CURRENT_CATALOG"
   | "MINT_PAUSED"
   | "DEST_ACCOUNT_FROZEN"
+  | "INSUFFICIENT_USDC"
   | "NO_EXECUTABLE_ROUTE"
   | "SIMULATION_FAILED"
   | "SOURCE_UNAVAILABLE"
@@ -39,7 +40,15 @@ export type CheckInput = {
   }>;
   mintState: Outcome<{ paused: boolean | null; decimals: number; multiplier: number; feeBps: number | null }>;
   destAccount?: Outcome<{ exists: boolean; frozen: boolean }>;
-  quote?: Outcome<{ hasRoute: boolean; sizeImpactPct: number | null; usdcInRaw: bigint; netOutRaw: bigint; minOutRaw: bigint | null }>;
+  funds?: Outcome<{ usdcBalanceRaw: bigint; usdcRequiredRaw: bigint }>;
+  quote?: Outcome<{
+    hasRoute: boolean;
+    detail?: string;
+    sizeImpactPct: number | null;
+    usdcInRaw: bigint;
+    netOutRaw: bigint;
+    minOutRaw: bigint | null;
+  }>;
   simulation?: Outcome<{ succeeded: boolean; creditRaw: bigint; walletSolCostLamports: number; error?: string }>;
   policy?: { maxSolCostLamports: number; maxSolCostPctOfOrder: number; solUsd: number | null };
 };
@@ -69,6 +78,7 @@ const PRIMARY_ORDER: ReasonCode[] = [
   "EVIDENCE_CONFLICT",
   "MINT_PAUSED",
   "DEST_ACCOUNT_FROZEN",
+  "INSUFFICIENT_USDC",
   "NOT_IN_CURRENT_CATALOG",
   "SOURCE_UNAVAILABLE",
   "NO_EXECUTABLE_ROUTE",
@@ -80,7 +90,15 @@ const PRIMARY_ORDER: ReasonCode[] = [
 ];
 
 // A transaction may only be offered when every check that can block it has actually run.
-const SIGNING_REQUIRES = ["MINT_PAUSED", "DEST_ACCOUNT_FROZEN", "NO_EXECUTABLE_ROUTE", "SIMULATION_FAILED", "EVIDENCE_CONFLICT", "catalog"];
+const SIGNING_REQUIRES = [
+  "MINT_PAUSED",
+  "DEST_ACCOUNT_FROZEN",
+  "NO_EXECUTABLE_ROUTE",
+  "SIMULATION_FAILED",
+  "EVIDENCE_CONFLICT",
+  "ABOVE_MARK_WORST_CASE",
+  "catalog",
+];
 
 export const MAX_EVIDENCE_AGE_MS = 24 * 60 * 60_000;
 
@@ -153,6 +171,15 @@ export function runCheck(input: CheckInput): CheckResult {
     hold("DEST_ACCOUNT_FROZEN", "Your token account for this mint is frozen.");
   }
 
+  if (input.funds !== undefined) {
+    if (!input.funds.ok) {
+      hold("SOURCE_UNAVAILABLE", `USDC balance unavailable: ${input.funds.error}`, { source: "rpc" });
+    } else if (input.funds.value.usdcBalanceRaw < input.funds.value.usdcRequiredRaw) {
+      const { usdcBalanceRaw, usdcRequiredRaw } = input.funds.value;
+      hold("INSUFFICIENT_USDC", `Your wallet holds ${Number(usdcBalanceRaw) / 1e6} USDC; this order needs ${Number(usdcRequiredRaw) / 1e6}.`);
+    }
+  }
+
   if (input.deadlineAhead) {
     const d = input.deadlineAhead;
     disclose("ISSUER_DEADLINE", `Issuer deadline ahead: ${d.statement}`, {
@@ -185,7 +212,8 @@ export function runCheck(input: CheckInput): CheckResult {
     hold("SOURCE_UNAVAILABLE", `Quote unavailable: ${input.quote.error}`, { source: "jupiter" });
     notEvaluated.push("ABOVE_MARK", "THIN_ROUTE");
   } else if (!input.quote.value.hasRoute) {
-    hold("NO_EXECUTABLE_ROUTE", "No executable route for this token at this size.");
+    const detail = input.quote.value.detail;
+    hold("NO_EXECUTABLE_ROUTE", `No executable route for this token at this size${detail ? ` (Jupiter: ${detail})` : ""}.`);
   } else {
     const q = input.quote.value;
     if (q.sizeImpactPct === null) {
@@ -205,6 +233,7 @@ export function runCheck(input: CheckInput): CheckResult {
       const usdc = Number(q.usdcInRaw) / 1e6;
       const toUi = (raw: bigint) => (Number(raw) / 10 ** m.decimals) * m.multiplier;
       const netOutUi = toUi(q.netOutRaw);
+      if (netOutUi <= 0) notEvaluated.push("ABOVE_MARK");
       if (netOutUi > 0) {
         const price = usdc / netOutUi;
         const premiumPct = (price / mark - 1) * 100;
@@ -245,6 +274,8 @@ export function runCheck(input: CheckInput): CheckResult {
     hold("SOURCE_UNAVAILABLE", `Simulation unavailable: ${input.simulation.error}`, { source: "rpc" });
   } else if (!input.simulation.value.succeeded) {
     hold("SIMULATION_FAILED", `The transaction would fail on chain: ${input.simulation.value.error ?? "unknown error"}.`);
+  } else if (input.simulation.value.creditRaw <= 0n) {
+    hold("SIMULATION_FAILED", "The simulated swap credits no tokens to your account.");
   } else if (!input.policy) {
     notEvaluated.push("HIGH_NETWORK_COST");
   } else {

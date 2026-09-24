@@ -101,19 +101,19 @@ export type PreparedQuote = {
   creditRaw: bigint;
   minOutRaw: bigint;
   walletSolCostLamports: number;
+  destRentLamports: number;
   simulationError?: string;
 };
 
-async function destinationAccount(wallet: string, mint: string, tokenProgram: string) {
+class NoRouteError extends Error {}
+
+async function tokenAccount(wallet: string, mint: string, tokenProgram: string) {
   const ata = getAssociatedTokenAddressSync(new PublicKey(mint), new PublicKey(wallet), false, new PublicKey(tokenProgram));
   const info = await connection().getParsedAccountInfo(ata);
-  const parsed = info.value?.data as { parsed?: { info: { state: string; tokenAmount: { amount: string } } } } | undefined;
-  return {
-    address: ata.toBase58(),
-    exists: !!info.value,
-    frozen: parsed?.parsed?.info.state === "frozen",
-    amountRaw: BigInt(parsed?.parsed?.info.tokenAmount.amount ?? "0"),
-  };
+  if (!info.value) return { address: ata.toBase58(), exists: false, frozen: false, amountRaw: 0n };
+  const parsed = (info.value.data as { parsed?: { info?: { state?: string; tokenAmount?: { amount?: string } } } }).parsed?.info;
+  if (!parsed?.state || parsed.tokenAmount?.amount === undefined) throw new Error(`Token account ${ata.toBase58()} could not be decoded`);
+  return { address: ata.toBase58(), exists: true, frozen: parsed.state === "frozen", amountRaw: BigInt(parsed.tokenAmount.amount) };
 }
 
 // Jupiter's automatic slippage sometimes lands at or below the token's own transfer fee,
@@ -146,62 +146,96 @@ async function quoteAndSimulate(
   mint: string,
   wallet: string,
   usdcRaw: bigint,
-  dest: { address: string; amountRaw: bigint },
+  accounts: { dest: { address: string; exists: boolean; amountRaw: bigint }; usdcAddress: string },
   slippageFloorBps: number,
 ): Promise<PreparedQuote> {
   const order = await orderWithSlippageFloor(mint, wallet, usdcRaw, slippageFloorBps);
-  if (!order.transaction) {
-    throw new Error(`No transaction from Jupiter (${order.router} code ${order.errorCode}: ${order.errorMessage ?? "unknown"})`);
-  }
+  if (!order.transaction) throw new NoRouteError(order.errorMessage ?? "no route");
   const tx = VersionedTransaction.deserialize(Buffer.from(order.transaction, "base64"));
+  // Submission verifies the ordering wallet's signature in the fee-payer slot, so only offer such transactions.
+  if (tx.message.staticAccountKeys[0].toBase58() !== wallet) throw new Error(`route ${order.router} needs a different fee payer`);
+
   const conn = connection();
-  const solBefore = await conn.getBalance(new PublicKey(wallet));
-  const sim = await simulate(tx, [wallet, dest.address]);
-  const [w, d] = sim.accounts;
+  const [solBefore, usdcBefore] = await Promise.all([
+    conn.getBalance(new PublicKey(wallet)),
+    tokenAccount(wallet, USDC_MINT, TOKEN_PROGRAM_ID).then((a) => a.amountRaw),
+  ]);
+  const sim = await simulate(tx, [wallet, accounts.dest.address, accounts.usdcAddress]);
+  const [w, d, u] = sim.accounts;
+  const creditRaw = (d.tokenAmountRaw ?? 0n) - accounts.dest.amountRaw;
+  const debitRaw = usdcBefore - (u.tokenAmountRaw ?? 0n);
+
+  let simulationError = sim.err ? JSON.stringify(sim.err) : undefined;
+  if (!simulationError && creditRaw <= 0n) simulationError = "the swap credits no tokens to your account";
+  if (!simulationError && debitRaw !== usdcRaw) simulationError = `the swap debits ${Number(debitRaw) / 1e6} USDC, not the ${Number(usdcRaw) / 1e6} ordered`;
+
   return {
     order,
     tx,
-    creditRaw: (d.tokenAmountRaw ?? 0n) - dest.amountRaw,
+    creditRaw,
     minOutRaw: BigInt(order.otherAmountThreshold ?? "0"),
     walletSolCostLamports: solBefore - w.lamports,
-    simulationError: sim.err ? JSON.stringify(sim.err) : undefined,
+    destRentLamports: accounts.dest.exists ? 0 : d.lamports,
+    simulationError,
   };
+}
+
+// Lower is better: dollars spent per token received, counting the SOL the wallet pays.
+function costPerToken(q: PreparedQuote, usdcRaw: bigint, solUsd: number | null): number {
+  const solCostUsd = solUsd !== null ? (q.walletSolCostLamports / 1e9) * solUsd : 0;
+  return (Number(usdcRaw) / 1e6 + solCostUsd) / Number(q.creditRaw);
 }
 
 export async function gatherForOrder(mint: string, wallet: string, usdcRaw: bigint, maxQuotes = 3) {
   const preview = await gatherPreview(mint);
   const input: CheckInput = { ...preview.input };
   const tokenProgram = preview.mintState?.program ?? TOKEN_PROGRAM_ID;
-  const dest = await settle(() => destinationAccount(wallet, mint, tokenProgram));
+  const [dest, usdc] = await Promise.all([
+    settle(() => tokenAccount(wallet, mint, tokenProgram)),
+    settle(() => tokenAccount(wallet, USDC_MINT, TOKEN_PROGRAM_ID)),
+  ]);
   input.destAccount = dest.ok ? { ok: true, value: { exists: dest.value.exists, frozen: dest.value.frozen } } : dest;
+  input.funds = usdc.ok ? { ok: true, value: { usdcBalanceRaw: usdc.value.amountRaw, usdcRequiredRaw: usdcRaw } } : usdc;
 
-  if (!dest.ok || runCheck(input).status === "HOLD") return { input, prepared: undefined };
+  if (!dest.ok || !usdc.ok || runCheck(input).status === "HOLD") return { input, prepared: undefined };
 
   const price = await solUsd();
   input.policy = { ...COST_POLICY, solUsd: price };
   const slippageFloorBps = (preview.mintState?.transferFee?.bps ?? 0) + 100;
+  const accounts = { dest: dest.value, usdcAddress: usdc.value.address };
 
   let best: PreparedQuote | undefined;
-  let lastError: string | undefined;
+  let failure: { kind: "no-route" | "simulation" | "source"; detail: string } | undefined;
   for (let i = 0; i < maxQuotes; i++) {
-    const attempt = await settle(() => quoteAndSimulate(mint, wallet, usdcRaw, dest.value, slippageFloorBps));
+    const attempt = await quoteAndSimulate(mint, wallet, usdcRaw, accounts, slippageFloorBps).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
     if (!attempt.ok) {
-      lastError = attempt.error;
+      const detail = attempt.error instanceof Error ? attempt.error.message : String(attempt.error);
+      failure = { kind: attempt.error instanceof NoRouteError ? "no-route" : "source", detail };
       continue;
     }
     const q = attempt.value;
-    if (!q.simulationError && (!best || q.walletSolCostLamports < best.walletSolCostLamports)) best = q;
-    if (!q.simulationError && q.walletSolCostLamports <= COST_POLICY.maxSolCostLamports) break;
-    if (q.simulationError && !best) lastError = `simulation: ${q.simulationError}`;
+    if (q.simulationError) {
+      if (!best) failure = { kind: "simulation", detail: q.simulationError };
+      continue;
+    }
+    if (!best || costPerToken(q, usdcRaw, price) <= costPerToken(best, usdcRaw, price)) best = q;
+    // Rent for a first-time token account is unavoidable, so it never justifies another quote.
+    if (best.walletSolCostLamports - best.destRentLamports <= COST_POLICY.maxSolCostLamports) break;
   }
 
   if (!best) {
-    input.quote = lastError?.startsWith("simulation:")
-      ? { ok: true, value: { hasRoute: true, sizeImpactPct: null, usdcInRaw: usdcRaw, netOutRaw: 0n, minOutRaw: null } }
-      : { ok: false, error: lastError ?? "no quote" };
-    input.simulation = lastError?.startsWith("simulation:")
-      ? { ok: true, value: { succeeded: false, creditRaw: 0n, walletSolCostLamports: 0, error: lastError } }
-      : undefined;
+    const none = { sizeImpactPct: null, usdcInRaw: usdcRaw, netOutRaw: 0n, minOutRaw: null };
+    if (failure?.kind === "no-route") {
+      input.quote = { ok: true, value: { hasRoute: false, detail: failure.detail, ...none } };
+    } else if (failure?.kind === "simulation") {
+      input.quote = { ok: true, value: { hasRoute: true, ...none } };
+      input.simulation = { ok: true, value: { succeeded: false, creditRaw: 0n, walletSolCostLamports: 0, error: failure.detail } };
+    } else {
+      input.quote = { ok: false, error: failure?.detail ?? "no quote" };
+    }
     return { input, prepared: undefined };
   }
 

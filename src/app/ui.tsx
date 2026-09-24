@@ -19,6 +19,7 @@ const TITLES: Record<string, string> = {
   NOT_IN_CURRENT_CATALOG: "Not in the current PreStocks catalog",
   MINT_PAUSED: "Mint is paused",
   DEST_ACCOUNT_FROZEN: "Your token account is frozen",
+  INSUFFICIENT_USDC: "Not enough USDC",
   NO_EXECUTABLE_ROUTE: "No executable route",
   SIMULATION_FAILED: "Would fail on chain",
   SOURCE_UNAVAILABLE: "A source could not be read",
