@@ -1,0 +1,27 @@
+{
+  "schema": "preflight.lifecycle.v1",
+  "reviewedAt": "2026-09-23T15:30:00Z",
+  "source": "Issuer pages captured with SHA-256 in research/sources/issuer-captures/manifest.json",
+  "entries": [
+    {
+      "symbol": "XAI",
+      "mint": "PreC1KtJ1sBPPqaeeqL6Qb15GTLCYVvyYEwxhdfTwfx",
+      "state": "window_closed",
+      "deadline": "2026-09-12T23:59:00Z",
+      "issuerUrl": "https://prestocks.com/xai",
+      "statement": "Each XAI token must be swapped into 0.7165 SPACEX before 11:59pm UTC on 12 September 2026, or it will expire worthless.",
+      "capturedAt": "2026-09-23T15:12:32Z",
+      "sha256": "e89091221dc90dfd8027070831866cde721eb058edbf441dd2d4a0cba463462b"
+    },
+    {
+      "symbol": "SPACEX",
+      "mint": "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh",
+      "state": "deadline_ahead",
+      "deadline": "2027-03-12T23:59:00Z",
+      "issuerUrl": "https://prestocks.com/spacex",
+      "statement": "SpaceX PreStocks tokens must be swapped into $SPCXx or any other token before 11:59pm UTC on 12 March 2027, or they will expire worthless.",
+      "capturedAt": "2026-09-23T15:13:27Z",
+      "sha256": "3ef40229c0b7958a9bf7eee625cf1cc974ade979a57a766a2f39814579d2d654"
+    }
+  ]
+}
