@@ -5,7 +5,7 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import type { CheckResult } from "@/lib/check";
 import { fmtSol, fmtTokens, tokensUi } from "@/lib/format";
 import { CatalogTable, type CatalogView } from "./catalog-table";
@@ -74,9 +74,9 @@ function useSecondsLeft(deadline: number | undefined): number {
 
 const button = "rounded bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-40";
 
-export default function Checker({ catalog }: { catalog: CatalogView | null }) {
+export default function Checker({ catalog, initialMint }: { catalog: CatalogView | null; initialMint?: string }) {
   const { publicKey, signTransaction } = useWallet();
-  const [mint, setMint] = useState(XAI);
+  const [mint, setMint] = useState(initialMint ?? XAI);
   const [usdc, setUsdc] = useState("2");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [order, setOrder] = useState<(Order & { deadline: number }) | null>(null);
@@ -91,6 +91,15 @@ export default function Checker({ catalog }: { catalog: CatalogView | null }) {
   useEffect(() => {
     const restore = setTimeout(() => setPending(readPending()), 0);
     return () => clearTimeout(restore);
+  }, []);
+
+  const checkInitialMint = useEffectEvent(() => {
+    if (initialMint) void runPreview(initialMint);
+  });
+
+  useEffect(() => {
+    const start = setTimeout(checkInitialMint, 0);
+    return () => clearTimeout(start);
   }, []);
 
   function clearOrder() {
