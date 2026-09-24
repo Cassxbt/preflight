@@ -64,11 +64,18 @@ function fileStore(): Store {
   };
 }
 
-// Upstash when the deployment provides it (Vercel Marketplace injects either variable pair); local files otherwise.
-function selectStore(): Store {
+// Upstash when the deployment provides it (Vercel Marketplace injects either variable pair).
+let redis: Redis | null | undefined;
+export function sharedRedis(): Redis | null {
+  if (redis !== undefined) return redis;
   const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
-  if (url && token) return redisStore(new Redis({ url, token, automaticDeserialization: false }));
+  return (redis = url && token ? new Redis({ url, token, automaticDeserialization: false }) : null);
+}
+
+function selectStore(): Store {
+  const client = sharedRedis();
+  if (client) return redisStore(client);
   // Serverless instances do not share a disk, so file locks and receipts would silently stop holding.
   if (process.env.VERCEL) throw new Error("Redis is not configured for this deployment");
   return fileStore();

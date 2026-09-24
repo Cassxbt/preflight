@@ -1,9 +1,12 @@
 import { z } from "zod";
 import { createFinalOrder } from "@/lib/order";
+import { rateLimited } from "@/lib/rateLimit";
 
 const Body = z.object({ mint: z.string(), wallet: z.string(), usdc: z.number() });
 
 export async function POST(request: Request) {
+  const limited = await rateLimited(request, "order", 10);
+  if (limited) return limited;
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ ok: false, status: "ERROR", error: "Expected { mint, wallet, usdc }." }, { status: 400 });
   try {
