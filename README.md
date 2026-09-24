@@ -35,7 +35,7 @@ A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits betwee
 
 ## The problem
 
-I started with the XAI token. The PreStocks page says each XAI token had to be swapped into SpaceX before 23:59 UTC on 12 September 2026, or it would **expire worthless**. That window has closed, but the mint still exists on chain. Nothing in the mint account or a swap quote carries that deadline. It lives on a web page.
+I started with the XAI token. The PreStocks page says each XAI token had to be swapped into SpaceX before 23:59 UTC on 12 September 2026, or it would **expire worthless**. That window has closed, but the token still trades. On 24 September, twelve days after the deadline, Jupiter still routed USDC into XAI through Meteora pools holding over $280,000, and the XAI/USDC pool had recorded a buy in the previous 24 hours. Nothing in the mint account or a swap quote carries that deadline. It lives on a web page.
 
 Then OPENAI. PreStocks publishes its own mark for every token. At the time of writing, its catalog lists OPENAI **32.8% above that mark**. A swap UI shows the price you will pay. It does not show the issuer's reference price next to it.
 
@@ -67,6 +67,13 @@ curl -s "https://preflight-weld.vercel.app/api/check?mint=PreC1KtJ1sBPPqaeeqL6Qb
 status: HOLD   signAvailable: false
 ISSUER_WINDOW_CLOSED   The issuer-defined XAI conversion window closed on 12 Sep 2026, 23:59 UTC.
 NOT_IN_CURRENT_CATALOG This mint is not in the current PreStocks catalog.
+```
+
+Jupiter's public quote API will still route a buy into the same mint:
+
+```bash
+curl -s "https://lite-api.jup.ag/swap/v1/quote?inputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&outputMint=PreC1KtJ1sBPPqaeeqL6Qb15GTLCYVvyYEwxhdfTwfx&amount=1000000"
+# a route through Meteora DLMM, as of 24 Sep 2026
 ```
 
 **A token listed far above the issuer's mark is disclosed.**
@@ -202,7 +209,7 @@ flowchart LR
 
 | Claim | Status |
 |---|---|
-| Holds buys the issuer's published terms rule out | **Real, for tokens in the registry.** [`src/data/lifecycle.json`](src/data/lifecycle.json) records the issuer's published deadlines, currently XAI and SPACEX. Each check re-reads the live page (cached up to 5 minutes) and verifies the capture hash. Tokens without an entry have no deadline on file and are not checked against an issuer page. |
+| Holds buys the issuer's published terms rule out | **Real, for tokens in the registry.** [`src/data/lifecycle.json`](src/data/lifecycle.json) records the issuer's published deadlines, currently XAI and SPACEX. Each check re-reads the live page (cached up to 5 minutes) and verifies the capture hash. Tokens without an entry have no deadline on file and are not checked against an issuer page. On 24 September all nine PreStocks token pages were checked, and only XAI and SPACEX carried a lifecycle notice. |
 | Prices your fill against the issuer mark | **Real.** The expected fill comes from Jupiter's quote and the worst case from its guaranteed minimum. The simulation confirms the exact USDC debit. |
 | One order cannot execute twice | **Real.** Atomic lock (Redis `SET NX` in production). Tested with parallel submissions against the file store. |
 | Verdict stored on chain | **No.** Preflight submits Jupiter's prepared message unchanged, and its exact-message check rejects any addition, so there is no memo. The verdict is stored by Preflight. Its hash detects edits if you saved the JSON, but it is not anchored on chain. |
