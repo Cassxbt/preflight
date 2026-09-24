@@ -42,3 +42,27 @@ next-env.d.ts
 
 # preflight local order/receipt store
 /.data/
+
+# keys and credentials, in any form
+*.key
+*.p12
+*.keystore
+*keypair*.json
+id_*
+.secrets*
+secrets/
+
+# local AI tool and editor files
+AGENTS.md
+CLAUDE.md
+.claude/
+.cursor/
+.codex/
+.idea/
+.vscode/
+
+# planning notes, scratch and logs kept outside the product
+*.plan.md
+notes/
+scratch/
+*.log
