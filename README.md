@@ -82,6 +82,13 @@ ABOVE_MARK  PreStocks lists this token at $1,358.20, 32.8% above its own mark of
 
 These are live figures, so the numbers move with the market. A preview without a wallet lists the route, simulation and account checks it could not run yet under `notEvaluated`, and does not report them as passed. The USDC balance check needs a wallet, so it runs only when you prepare an order.
 
+**A token that borrows the OPENAI ticker is held.** Jupiter lists a tradable token whose symbol is exactly `OPENAI`, and PreStocks did not issue it. Preflight accepts only the exact mint in the PreStocks catalog, so a matching ticker is not enough.
+
+```bash
+curl -s "https://preflight-weld.vercel.app/api/check?mint=BQ7joNtLvoWPsf3XbAy6bvcNadBvPgkH6ESD7SSypump"
+# status: HOLD  NOT_IN_CURRENT_CATALOG
+```
+
 **The replaced OPENAI mint is paused on chain.**
 
 ```bash
