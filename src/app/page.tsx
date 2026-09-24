@@ -1,11 +1,14 @@
+import Image from "next/image";
 import Link from "next/link";
 import { runCheck } from "@/lib/check";
 import { catalogView } from "@/lib/catalogView";
+import { fmtUsd } from "@/lib/format";
 import { gatherPreview } from "@/lib/gather";
+import { buildReceipt } from "@/lib/receipt";
 import { SiteFooter, SiteHeader } from "./_site/chrome";
 import { Bezel, Cta, Eyebrow } from "./_site/primitives";
 import { Reveal } from "./_site/reveal";
-import { VerdictCard } from "./_site/verdict-card";
+import { StatusLight, VerdictCard } from "./_site/verdict-card";
 import { Architecture, DeadlineTimeline, LogoMarquee, MiniVerdict, PremiumChart, ReceiptTicket, SwapComparison } from "./_site/visuals";
 
 const XAI = "PreC1KtJ1sBPPqaeeqL6Qb15GTLCYVvyYEwxhdfTwfx";
@@ -32,22 +35,31 @@ function Heading({ eyebrow, title, lead }: { eyebrow: string; title: string; lea
 }
 
 export default async function Landing() {
-  const [xai, catalog] = await Promise.all([liveXai(), catalogView().catch(() => null)]);
+  const [xai, catalog, receipt] = await Promise.all([liveXai(), catalogView().catch(() => null), buildReceipt(RECEIPT).catch(() => null)]);
   const tokens = catalog?.tokens ?? [];
   const openai = tokens.find((t) => t.symbol === "OPENAI");
   const anthropic = tokens.find((t) => t.symbol === "ANTHROPIC");
-  const aboveMark = tokens.filter((t) => t.listedPremiumPct > 5);
   const lifecycle = xai?.result.reasons.find((r) => r.code === "ISSUER_WINDOW_CLOSED");
   const statement = typeof lifecycle?.evidence?.statement === "string" ? (lifecycle.evidence.statement as string) : null;
 
   const refusals = [
-    { code: "ISSUER_WINDOW_CLOSED", status: "HOLD", title: "A closed conversion window", body: "XAI holders had until 12 September 2026 to swap into SPACEX. The mint still exists on chain.", mint: XAI },
+    {
+      code: "ISSUER_WINDOW_CLOSED",
+      status: "HOLD",
+      title: "A closed conversion window",
+      body: "XAI holders had until 12 September 2026 to swap into SPACEX. The mint still exists on chain.",
+      mint: XAI,
+      logo: XAI_LOGO as string | undefined,
+      span: "md:col-span-7",
+    },
     {
       code: "MINT_PAUSED",
       status: "HOLD",
       title: "A paused, superseded mint",
       body: "The first OPENAI mint is paused under Token-2022, and still carries the name.",
       mint: "PreYKD2kJ5xGgoZ644VPfbEN7sW8bWCUREHr5S3ebV9",
+      logo: openai?.image,
+      span: "md:col-span-5",
     },
     {
       code: "NOT_IN_CURRENT_CATALOG",
@@ -55,15 +67,19 @@ export default async function Landing() {
       title: "A mint the issuer does not list",
       body: "Only the exact mints in the PreStocks catalog pass. Anything else holds, whatever it calls itself.",
       mint: "6yWNSP6qqhob2WqjBmNb1RuVsBK17RM3SqTYAXYz8KPr",
+      logo: undefined,
+      span: "md:col-span-5",
     },
     {
       code: "ABOVE_MARK",
       status: "DISCLOSE",
       title: "A price far above the mark",
       body: openai
-        ? `PreStocks lists OPENAI at $${openai.tokenPrice.toFixed(2)} against its own $${openai.markPrice.toFixed(2)} mark.`
+        ? `PreStocks lists OPENAI at ${fmtUsd(openai.tokenPrice)} against its own ${fmtUsd(openai.markPrice)} mark, ${openai.listedPremiumPct.toFixed(1)}% above.`
         : "Some listed prices sit far above the issuer's own mark.",
       mint: openai?.mint ?? "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF",
+      logo: openai?.image,
+      span: "md:col-span-7",
     },
   ];
 
@@ -79,11 +95,13 @@ export default async function Landing() {
       <div className="relative pt-4">
         <SiteHeader />
 
-        <section className="mx-auto grid max-w-6xl items-center gap-16 px-4 pt-24 pb-28 lg:grid-cols-[1.05fr_1fr] lg:pt-32">
+        <section className="mx-auto grid max-w-6xl items-center gap-20 px-4 pt-20 pb-24 lg:grid-cols-[1.05fr_1fr] lg:pt-28">
           <Reveal className="space-y-9">
-            <Eyebrow>Stocklana · PreStocks track · Solana mainnet</Eyebrow>
+            <Eyebrow>
+              Stocklana · PreStocks track<span className="hidden sm:inline"> · Solana mainnet</span>
+            </Eyebrow>
             <h1 className="text-[3.25rem] leading-[0.98] font-semibold tracking-[-0.045em] text-balance sm:text-7xl">
-              Check the token <span className="bg-gradient-to-r from-hold via-disclose to-clear bg-clip-text text-transparent">before you sign.</span>
+              Check the token <span className="bg-gradient-to-b from-foreground to-foreground/45 bg-clip-text text-transparent">before you sign.</span>
             </h1>
             <p className="max-w-[52ch] text-lg leading-relaxed text-muted text-pretty">
               Preflight checks a PreStocks token against its issuer, its mint and its route. It holds anything that should not be bought, and you
@@ -95,28 +113,20 @@ export default async function Landing() {
                 See a real receipt
               </Cta>
             </div>
-            <dl className="grid max-w-md grid-cols-3 gap-6 pt-2">
-              {[
-                ["reason codes", "13"],
-                ["listed >5% over mark", catalog ? `${aboveMark.length}/${tokens.length}` : "—"],
-                ["wallet to check", "none"],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dd className="tabular font-mono text-2xl tracking-tight">{value}</dd>
-                  <dt className="mt-1 text-xs text-muted">{label}</dt>
-                </div>
-              ))}
-            </dl>
+            <p className="flex items-center gap-2 text-sm text-muted">
+              <span className="h-1.5 w-1.5 rounded-full bg-clear shadow-[0_0_8px_var(--clear)]" />
+              No wallet needed to check a token.
+            </p>
           </Reveal>
 
           <Reveal delay={150} className="relative mx-auto w-full max-w-md lg:max-w-none">
             {openai && (
-              <div className="absolute -top-10 -right-6 hidden w-[78%] rotate-[4deg] opacity-70 md:block">
+              <div className="absolute -top-20 -right-10 hidden w-[68%] rotate-[4deg] brightness-75 saturate-50 md:block">
                 <MiniVerdict symbol="OPENAI" logo={openai.image} status="DISCLOSE" code="ABOVE_MARK" line={`Listed ${openai.listedPremiumPct.toFixed(1)}% above the issuer mark`} />
               </div>
             )}
             {anthropic && (
-              <div className="absolute -bottom-12 -left-8 hidden w-[72%] -rotate-[3deg] opacity-70 md:block">
+              <div className="absolute -bottom-20 -left-10 hidden w-[62%] -rotate-[3deg] brightness-75 saturate-50 md:block">
                 <MiniVerdict symbol="ANTHROPIC" logo={anthropic.image} status="PREVIEW" code="NO WARNING" line="Listed, unpaused, within 5% of mark" />
               </div>
             )}
@@ -138,7 +148,7 @@ export default async function Landing() {
           </div>
         )}
 
-        <section className="mx-auto max-w-6xl space-y-14 px-4 py-32">
+        <section className="mx-auto max-w-6xl space-y-14 px-4 py-20 md:py-32">
           <Heading
             eyebrow="The problem"
             title="Your wallet shows a price. It does not show the issuer."
@@ -146,9 +156,9 @@ export default async function Landing() {
           />
           <Reveal>{xai && <SwapComparison reasons={xai.result.reasons} statement={statement} />}</Reveal>
 
-          <div className="grid gap-4 lg:grid-cols-12">
-            <Reveal className="lg:col-span-7">
-              <Bezel inner="p-7">
+          <div className="grid items-stretch gap-4 lg:grid-cols-12">
+            <Reveal className="h-full lg:col-span-7">
+              <Bezel className="h-full" inner="p-7">
                 <p className="font-semibold tracking-tight">Premiums the swap screen will not flag</p>
                 <p className="mt-1 max-w-[52ch] text-sm text-muted">
                   Listed price against the issuer&apos;s own mark, for every token PreStocks lists, before a Token-2022 transfer fee of about 1% on the
@@ -188,7 +198,7 @@ export default async function Landing() {
         </section>
 
         <section id="how" className="scroll-mt-24 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl space-y-14 px-4 py-32">
+          <div className="mx-auto max-w-6xl space-y-14 px-4 py-20 md:py-32">
             <Heading
               eyebrow="How it works"
               title="One gate between the quote and your signature."
@@ -203,12 +213,14 @@ export default async function Landing() {
                 ["Sign, then receipt", "You sign those bytes inside the route's validity. The receipt separates chain facts from app records."],
               ].map(([title, body], i) => (
                 <Reveal key={title} delay={i * 100}>
-                  <div className="relative space-y-4">
-                    <span className="relative flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-[1.4rem] bg-surface font-mono text-sm ring-1 ring-white/10">
+                  <div className="relative flex gap-4 md:block md:space-y-4">
+                    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface font-mono text-xs ring-1 ring-white/10 md:h-[4.5rem] md:w-[4.5rem] md:rounded-[1.4rem] md:text-sm">
                       0{i + 1}
                     </span>
-                    <p className="text-lg font-semibold tracking-tight">{title}</p>
-                    <p className="text-sm leading-relaxed text-muted">{body}</p>
+                    <div className="space-y-2 md:space-y-4">
+                      <p className="text-lg font-semibold tracking-tight">{title}</p>
+                      <p className="text-sm leading-relaxed text-muted">{body}</p>
+                    </div>
                   </div>
                 </Reveal>
               ))}
@@ -232,23 +244,33 @@ export default async function Landing() {
         </section>
 
         <section className="border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl space-y-14 px-4 py-32">
+          <div className="mx-auto max-w-6xl space-y-14 px-4 py-20 md:py-32">
             <Heading
               eyebrow="Try to make it buy"
-              title="Four tokens a wallet would let you buy."
+              title="Four tokens a wallet would show you."
               lead="Each opens in the app and runs live against the issuer, the chain and Jupiter. No wallet needed."
             />
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-12">
               {refusals.map((r, i) => (
-                <Reveal key={r.code} delay={i * 80}>
+                <Reveal key={r.code} delay={i * 80} className={`h-full ${r.span}`}>
                   <Link href={`/app?mint=${r.mint}`} className="group block h-full transition-transform duration-700 ease-spring hover:-translate-y-1">
                     <Bezel className="h-full" inner="flex h-full flex-col p-7">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-[11px] text-muted">{r.code}</span>
-                        <span className={`font-mono text-[11px] font-semibold ${r.status === "HOLD" ? "text-hold" : "text-disclose"}`}>{r.status}</span>
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="flex items-center gap-2.5">
+                          {r.logo ? (
+                            <Image src={r.logo} alt="" width={28} height={28} className="rounded-full ring-1 ring-white/10" />
+                          ) : (
+                            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.06] font-mono text-[11px] text-muted ring-1 ring-white/10">?</span>
+                          )}
+                          <span className="font-mono text-[11px] text-muted">
+                            {r.mint.slice(0, 4)}…{r.mint.slice(-4)}
+                          </span>
+                        </span>
+                        <StatusLight status={r.status} />
                       </div>
                       <p className="mt-6 text-xl font-semibold tracking-tight">{r.title}</p>
                       <p className="mt-2 text-sm leading-relaxed text-muted">{r.body}</p>
+                      <p className="mt-6 rounded-xl bg-raised px-3 py-2 font-mono text-[11px] ring-1 ring-white/[0.05]">{r.code}</p>
                       <span className="mt-auto inline-flex items-center gap-2 pt-8 text-sm text-muted transition-colors duration-500 group-hover:text-foreground">
                         Run this check
                         <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 transition-transform duration-500 ease-spring group-hover:translate-x-1" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
@@ -264,7 +286,7 @@ export default async function Landing() {
         </section>
 
         <section id="stack" className="scroll-mt-24 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl space-y-14 px-4 py-32">
+          <div className="mx-auto max-w-6xl space-y-14 px-4 py-20 md:py-32">
             <Heading eyebrow="Built on" title="Remove any layer and Preflight breaks." lead="Each dependency supplies a fact the gate cannot get anywhere else." />
             <Reveal>
               <Architecture />
@@ -273,7 +295,7 @@ export default async function Landing() {
         </section>
 
         <section id="proof" className="scroll-mt-24 border-t border-white/[0.06]">
-          <div className="mx-auto grid max-w-6xl items-center gap-16 px-4 py-32 lg:grid-cols-2">
+          <div className="mx-auto grid max-w-6xl items-center gap-16 px-4 py-20 md:py-32 lg:grid-cols-2">
             <div className="space-y-8">
               <Heading
                 eyebrow="Proof"
@@ -287,26 +309,24 @@ export default async function Landing() {
                 </Cta>
               </Reveal>
             </div>
-            <Reveal delay={150}>
-              <ReceiptTicket signature={RECEIPT} />
-            </Reveal>
+            <Reveal delay={150}>{receipt && <ReceiptTicket receipt={receipt} />}</Reveal>
           </div>
         </section>
 
         <section id="limits" className="scroll-mt-24 border-t border-white/[0.06]">
-          <div className="mx-auto max-w-6xl space-y-14 px-4 py-32">
+          <div className="mx-auto max-w-6xl space-y-14 px-4 py-20 md:py-32">
             <Heading eyebrow="Honesty" title="What Preflight proves, and what it does not." />
             <div className="grid gap-4 md:grid-cols-2">
               {[
                 {
-                  label: "Proves",
+                  label: "Guarantees",
                   dot: "bg-clear",
                   tone: "text-clear",
                   items: [
-                    "The transaction you signed is byte-for-byte the one it simulated and checked.",
-                    "What the chain recorded: USDC debited, tokens credited, SOL spent.",
-                    "That the issuer page linked the mint and carried the reviewed terms when checked.",
-                    "That the verdict record was not changed after signing: its SHA-256 recomputes from the receipt.",
+                    "Refuses to send any signed transaction whose bytes differ from the one it simulated and checked.",
+                    "Reads every receipt from the chain: USDC debited, tokens credited, SOL spent. Anyone can reproduce these from the signature.",
+                    "Records whether the issuer page linked the mint and carried the reviewed terms at check time, next to the capture's SHA-256.",
+                    "Publishes the verdict and its SHA-256 on each receipt, so a copy saved at signing can be compared later.",
                   ],
                 },
                 {
@@ -315,7 +335,7 @@ export default async function Landing() {
                   tone: "text-disclose",
                   items: [
                     "Decide your eligibility. PreStocks says its tokens are not available to U.S. persons.",
-                    "Put the verdict on chain. Jupiter's aggregator transaction cannot be modified to add a memo, so the link is the receipt record.",
+                    "Anchor the verdict on chain. Jupiter's aggregator transaction cannot be modified to add a memo, so the verdict record is stored by Preflight.",
                     "Know when the issuer last updated its mark. It shows when the mark was read.",
                     "Protect trades made elsewhere. Orders are capped at 5 USDC while this is a hackathon build.",
                   ],
@@ -342,7 +362,7 @@ export default async function Landing() {
         <section className="relative overflow-hidden border-t border-white/[0.06]">
           <div aria-hidden className="absolute top-1/2 left-1/2 h-[420px] w-[720px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/[0.04] blur-[100px]" />
           <Reveal className="relative mx-auto flex max-w-6xl flex-col items-center gap-8 px-4 py-36 text-center">
-            <h2 className="max-w-2xl text-4xl leading-[1.05] font-semibold tracking-[-0.03em] text-balance sm:text-6xl">Check a PreStocks token before your next buy.</h2>
+            <h2 className="max-w-3xl text-4xl leading-[1.05] font-semibold tracking-[-0.03em] text-balance sm:text-6xl">Check a PreStocks token before your next buy.</h2>
             <Cta href="/app">Launch app</Cta>
           </Reveal>
         </section>
