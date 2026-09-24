@@ -48,6 +48,9 @@ function preview(over: Partial<CheckInput> = {}): CheckInput {
   return rest;
 }
 
+const verified = (over: Partial<{ fetchedAt: string; mintLinked: boolean; statementPresent: boolean; linkedMints: string[]; captureIntact: boolean }> = {}) =>
+  ok({ fetchedAt: NOW, mintLinked: true, statementPresent: true, linkedMints: [], captureIntact: true, ...over });
+
 const codes = (input: CheckInput) => runCheck(input).reasons.map((r) => r.code);
 const priceOf = (input: CheckInput) => runCheck(input).metrics.executablePrice!;
 
@@ -87,7 +90,8 @@ describe("acceptance 3: SPACEX future deadline plus other warnings", () => {
   const spacex = final({
     mint: "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh",
     deadlineAhead: SPACEX_EVIDENCE,
-    catalog: ok({ listed: true, symbol: "SPACEX", markPrice: 80, retrievedAt: NOW }),
+    issuer: verified(),
+    catalog: ok({ listed: true, symbol: "SPACEX", markPrice: 80, retrievedAt: NOW, mintForLifecycleSymbol: "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh" }),
     mintState: ok({ paused: false, decimals: 9, multiplier: 5, feeBps: 100 }),
     destAccount: ok({ exists: false, frozen: false }),
     quote: ok({ hasRoute: true, sizeImpactPct: 3.5, usdcInRaw: 5_000_000n, netOutRaw: 8_672_375n }),
@@ -104,7 +108,7 @@ describe("acceptance 3: SPACEX future deadline plus other warnings", () => {
   it("quotes the issuer's conversion terms accurately", () => {
     const deadline = runCheck(spacex).reasons[0];
     expect(deadline.message).toContain("$SPCXx or any other token");
-    expect(deadline.evidence).toMatchObject({ deadline: SPACEX_EVIDENCE.deadline, sha256: SPACEX_EVIDENCE.sha256 });
+    expect(deadline.evidence).toMatchObject({ deadline: SPACEX_EVIDENCE.deadline, sha256: SPACEX_EVIDENCE.sha256, liveVerifiedAt: NOW });
   });
 
   it("explains that the SOL cost is mostly refundable rent when the token account is new", () => {
@@ -269,6 +273,62 @@ describe("acceptance 5: fee and amount math", () => {
     expect(effectiveMultiplier(config, 1_789_999_999)).toBe(1.4861347);
     expect(effectiveMultiplier(config, 1_790_000_000)).toBe(2);
     expect(effectiveMultiplier({ multiplier: "5", newMultiplier: "5", newMultiplierEffectiveTimestamp: "0" }, 1_790_000_000)).toBe(5);
+  });
+});
+
+describe("acceptance 6: issuer evidence integrity and freshness", () => {
+  const spacex = (over: Partial<CheckInput>) =>
+    final({ mint: "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh", deadlineAhead: SPACEX_EVIDENCE, issuer: verified(), ...over });
+
+  it("does not offer signing for a lifecycle mint whose issuer evidence was not checked", () => {
+    const r = runCheck(spacex({ issuer: undefined }));
+    expect(r.notEvaluated).toContain("EVIDENCE_CONFLICT");
+    expect(r.signAvailable).toBe(false);
+  });
+
+  it("holds when the issuer page cannot be fetched", () => {
+    const r = runCheck(spacex({ issuer: fail("HTTP 503") }));
+    expect(r.reasons[0]).toMatchObject({ code: "SOURCE_UNAVAILABLE", evidence: { source: "issuer" } });
+    expect(r.signAvailable).toBe(false);
+  });
+
+  it("holds when the issuer evidence is older than 24 hours", () => {
+    const stale = new Date(Date.parse(NOW) - 24 * 60 * 60_000 - 1).toISOString();
+    expect(runCheck(spacex({ issuer: verified({ fetchedAt: stale }) })).reasons[0]).toMatchObject({ code: "SOURCE_UNAVAILABLE" });
+    const fresh = new Date(Date.parse(NOW) - 24 * 60 * 60_000).toISOString();
+    expect(codes(spacex({ issuer: verified({ fetchedAt: fresh }) }))).not.toContain("SOURCE_UNAVAILABLE");
+  });
+
+  it.each([
+    ["a tampered capture", { captureIntact: false }, "SHA-256"],
+    ["an issuer page that no longer links the mint", { mintLinked: false, linkedMints: ["Other111"] }, "no longer links this mint"],
+    ["changed lifecycle terms", { statementPresent: false }, "lifecycle terms"],
+  ])("holds with EVIDENCE_CONFLICT for %s", (_label, over, text) => {
+    const r = runCheck(spacex({ issuer: verified(over) }));
+    expect(r.status).toBe("HOLD");
+    expect(r.signAvailable).toBe(false);
+    expect(r.reasons[0].code).toBe("EVIDENCE_CONFLICT");
+    expect(r.reasons[0].message).toContain(text);
+  });
+
+  it("holds when the catalog lists the lifecycle symbol under a different mint", () => {
+    const catalog = ok({ listed: true, markPrice: 1038.61, retrievedAt: NOW, mintForLifecycleSymbol: "PreOtherMint1111111111111111111111111111111" });
+    expect(runCheck(spacex({ catalog })).reasons[0]).toMatchObject({ code: "EVIDENCE_CONFLICT" });
+  });
+
+  it("reports every conflict in one reason", () => {
+    const r = runCheck(spacex({ issuer: verified({ captureIntact: false, statementPresent: false }) }));
+    expect(r.reasons.filter((x) => x.code === "EVIDENCE_CONFLICT")).toHaveLength(1);
+    expect(r.reasons[0].message).toMatch(/SHA-256.*lifecycle terms/);
+  });
+
+  it("does not claim live verification when the evidence conflicts", () => {
+    const deadline = runCheck(spacex({ issuer: verified({ statementPresent: false }) })).reasons.find((x) => x.code === "ISSUER_DEADLINE")!;
+    expect(deadline.evidence?.liveVerifiedAt).toBeNull();
+  });
+
+  it("ignores issuer evidence for mints without a lifecycle entry", () => {
+    expect(runCheck(final({ issuer: undefined })).status).toBe("CLEAR");
   });
 });
 

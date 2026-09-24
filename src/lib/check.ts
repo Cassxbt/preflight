@@ -21,12 +21,15 @@ export type Reason = { code: ReasonCode; status: Exclude<Status, "CLEAR">; messa
 // Every input is either a value, an error string (source failed), or undefined (not evaluated yet).
 export type Outcome<T> = { ok: true; value: T } | { ok: false; error: string };
 
+export type LifecycleEvidence = { symbol: string; deadline: string; issuerUrl: string; statement: string; capturedAt: string; sha256: string };
+
 export type CheckInput = {
   mint: string;
   now: string;
-  retired?: { symbol: string; deadline: string; issuerUrl: string; statement: string; capturedAt: string; sha256: string };
-  deadlineAhead?: { symbol: string; deadline: string; issuerUrl: string; statement: string; capturedAt: string; sha256: string };
-  catalog: Outcome<{ listed: boolean; symbol?: string; markPrice?: number; retrievedAt: string }>;
+  retired?: LifecycleEvidence;
+  deadlineAhead?: LifecycleEvidence;
+  issuer?: Outcome<{ fetchedAt: string; mintLinked: boolean; statementPresent: boolean; linkedMints: string[]; captureIntact: boolean }>;
+  catalog: Outcome<{ listed: boolean; symbol?: string; markPrice?: number; retrievedAt: string; mintForLifecycleSymbol?: string | null }>;
   mintState: Outcome<{ paused: boolean | null; decimals: number; multiplier: number; feeBps: number | null }>;
   destAccount?: Outcome<{ exists: boolean; frozen: boolean }>;
   quote?: Outcome<{ hasRoute: boolean; sizeImpactPct: number | null; usdcInRaw: bigint; netOutRaw: bigint }>;
@@ -61,7 +64,9 @@ const PRIMARY_ORDER: ReasonCode[] = [
 ];
 
 // A transaction may only be offered when every check that can block it has actually run.
-const SIGNING_REQUIRES = ["MINT_PAUSED", "DEST_ACCOUNT_FROZEN", "NO_EXECUTABLE_ROUTE", "SIMULATION_FAILED", "catalog"];
+const SIGNING_REQUIRES = ["MINT_PAUSED", "DEST_ACCOUNT_FROZEN", "NO_EXECUTABLE_ROUTE", "SIMULATION_FAILED", "EVIDENCE_CONFLICT", "catalog"];
+
+export const MAX_EVIDENCE_AGE_MS = 24 * 60 * 60_000;
 
 export function runCheck(input: CheckInput): CheckResult {
   const reasons: Reason[] = [];
@@ -71,6 +76,10 @@ export function runCheck(input: CheckInput): CheckResult {
   const disclose = (code: ReasonCode, message: string, evidence?: Record<string, unknown>) =>
     reasons.push({ code, status: "DISCLOSE", message, evidence });
 
+  const lifecycle = input.retired ?? input.deadlineAhead;
+  const issuer = input.issuer?.ok ? input.issuer.value : null;
+  const liveVerifiedAt = issuer && issuer.captureIntact && issuer.mintLinked && issuer.statementPresent ? issuer.fetchedAt : null;
+
   if (input.retired) {
     const r = input.retired;
     hold("ISSUER_WINDOW_CLOSED", `The issuer-defined ${r.symbol} conversion window closed on ${r.deadline}.`, {
@@ -78,7 +87,32 @@ export function runCheck(input: CheckInput): CheckResult {
       statement: r.statement,
       capturedAt: r.capturedAt,
       sha256: r.sha256,
+      liveVerifiedAt,
     });
+  }
+
+  if (lifecycle) {
+    if (input.issuer === undefined) {
+      notEvaluated.push("EVIDENCE_CONFLICT");
+    } else if (!input.issuer.ok) {
+      hold("SOURCE_UNAVAILABLE", `Issuer page unavailable: ${input.issuer.error}`, { source: "issuer", issuerUrl: lifecycle.issuerUrl });
+      notEvaluated.push("EVIDENCE_CONFLICT");
+    } else if (Date.parse(input.now) - Date.parse(input.issuer.value.fetchedAt) > MAX_EVIDENCE_AGE_MS) {
+      hold("SOURCE_UNAVAILABLE", `Issuer evidence is older than 24 hours (fetched ${input.issuer.value.fetchedAt}).`, { source: "issuer" });
+      notEvaluated.push("EVIDENCE_CONFLICT");
+    } else {
+      const e = input.issuer.value;
+      const catalogMint = input.catalog.ok ? input.catalog.value.mintForLifecycleSymbol : null;
+      const conflicts = [
+        !e.captureIntact && "the reviewed capture no longer matches its recorded SHA-256",
+        !e.mintLinked && `the issuer page no longer links this mint (links: ${e.linkedMints.join(", ") || "none"})`,
+        !e.statementPresent && "the issuer page no longer contains the reviewed lifecycle terms",
+        catalogMint && catalogMint !== input.mint && `the catalog lists ${lifecycle.symbol} under a different mint (${catalogMint})`,
+      ].filter((c): c is string => typeof c === "string");
+      if (conflicts.length) {
+        hold("EVIDENCE_CONFLICT", `Issuer evidence disagrees: ${conflicts.join("; ")}.`, { issuerUrl: lifecycle.issuerUrl, fetchedAt: e.fetchedAt });
+      }
+    }
   }
 
   if (!input.catalog.ok) {
@@ -110,6 +144,7 @@ export function runCheck(input: CheckInput): CheckResult {
       issuerUrl: d.issuerUrl,
       capturedAt: d.capturedAt,
       sha256: d.sha256,
+      liveVerifiedAt,
     });
   }
 

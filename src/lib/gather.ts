@@ -1,11 +1,12 @@
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { PublicKey, VersionedTransaction } from "@solana/web3.js";
 import { fetchCatalog, findExact } from "./catalog";
-import type { CheckInput, Outcome } from "./check";
+import { runCheck, type CheckInput, type Outcome } from "./check";
 import { USDC_MINT } from "./constants";
 import { serverEnv } from "./env";
 import { metaOrder, type MetaOrder } from "./jupiter";
-import { lifecycleFor } from "./lifecycle";
+import { verifyIssuerEvidence } from "./issuer";
+import { lifecycleFor, type LifecycleEntry } from "./lifecycle";
 import { readMintState, type MintState } from "./mintState";
 import { connection, simulate } from "./solana";
 
@@ -41,8 +42,7 @@ async function solUsd(): Promise<number | null> {
   }
 }
 
-function lifecycleInputs(mint: string): Pick<CheckInput, "retired" | "deadlineAhead"> {
-  const entry = lifecycleFor(mint);
+function lifecycleInputs(entry: LifecycleEntry | undefined): Pick<CheckInput, "retired" | "deadlineAhead"> {
   if (!entry) return {};
   const evidence = {
     symbol: entry.symbol,
@@ -60,19 +60,35 @@ function toCheckMint(state: MintState) {
   return { paused: state.paused, decimals: state.decimals, multiplier: state.multiplier, feeBps: state.transferFee?.bps ?? null };
 }
 
-// Wallet-free preview: identity, lifecycle, mint state. No quote, no transaction.
+// Wallet-free preview: identity, lifecycle and live issuer evidence, mint state. No quote, no transaction.
 export async function gatherPreview(mint: string): Promise<{ input: CheckInput; symbol?: string; mintState?: MintState }> {
-  const [catalog, mintState] = await Promise.all([settle(fetchCatalog), settle(() => readMintState(mint))]);
+  const lifecycle = lifecycleFor(mint);
+  const [catalog, mintState, issuer] = await Promise.all([
+    settle(fetchCatalog),
+    settle(() => readMintState(mint)),
+    lifecycle ? settle(() => verifyIssuerEvidence(lifecycle)) : Promise.resolve(undefined),
+  ]);
   const entry = catalog.ok ? findExact(catalog.value, mint) : undefined;
+  const sameSymbol = lifecycle && catalog.ok ? catalog.value.entries.find((e) => e.symbol === lifecycle.symbol) : undefined;
   return {
     symbol: entry?.symbol,
     mintState: mintState.ok ? mintState.value : undefined,
     input: {
       mint,
       now: new Date().toISOString(),
-      ...lifecycleInputs(mint),
+      ...lifecycleInputs(lifecycle),
+      issuer,
       catalog: catalog.ok
-        ? { ok: true, value: { listed: !!entry, symbol: entry?.symbol, markPrice: entry?.markPrice, retrievedAt: catalog.value.retrievedAt } }
+        ? {
+            ok: true,
+            value: {
+              listed: !!entry,
+              symbol: entry?.symbol,
+              markPrice: entry?.markPrice,
+              retrievedAt: catalog.value.retrievedAt,
+              mintForLifecycleSymbol: sameSymbol?.contract_address ?? null,
+            },
+          }
         : catalog,
       mintState: mintState.ok ? { ok: true, value: toCheckMint(mintState.value) } : mintState,
     },
@@ -161,8 +177,7 @@ export async function gatherForOrder(mint: string, wallet: string, usdcRaw: bigi
   const dest = await settle(() => destinationAccount(wallet, mint, tokenProgram));
   input.destAccount = dest.ok ? { ok: true, value: { exists: dest.value.exists, frozen: dest.value.frozen } } : dest;
 
-  const blocked = input.retired || (input.catalog.ok && !input.catalog.value.listed) || !dest.ok;
-  if (blocked) return { input, prepared: undefined };
+  if (!dest.ok || runCheck(input).status === "HOLD") return { input, prepared: undefined };
 
   const price = await solUsd();
   input.policy = { ...COST_POLICY, solUsd: price };
