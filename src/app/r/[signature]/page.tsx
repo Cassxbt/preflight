@@ -120,7 +120,7 @@ export default async function ReceiptPage(props: PageProps<"/r/[signature]">) {
               {usdcSpent !== null ? `${usdcSpent} USDC` : "Purchase"} <em className="text-muted">into {company}.</em>
             </h1>
             <p className="max-w-md text-[15px] leading-relaxed text-muted">
-              What the chain proves, what Preflight recorded before you signed, and what the issuer published, kept apart so each can be checked on its own.
+              What the chain proves, what Preflight checked before you signed, and what the issuer published, kept apart so each can be checked on its own.
             </p>
             <div className="flex flex-wrap gap-3">
               <Cta href={`https://solscan.io/tx/${signature}`}>View on Solscan</Cta>
@@ -134,7 +134,7 @@ export default async function ReceiptPage(props: PageProps<"/r/[signature]">) {
 
         <div className="grid items-start gap-4 lg:grid-cols-[1fr_1.15fr]">
           <div className="space-y-4">
-            <Group title="Chain verified" tag="chain" note="Read from Solana just now. Anyone can reproduce it from the signature." rows={chainRows} />
+            <Group title="Chain verified" tag="chain" note="Read from Solana at confirmed commitment. Anyone can reproduce it from the signature." rows={chainRows} />
             <Group title="Issuer attested" tag="issuer" note="What PreStocks published at check time. Preflight quotes it; it does not vouch for it." rows={issuerRows} />
           </div>
           <Group title="App recorded" tag="app" note="What Preflight checked and expected before signing. Stored by Preflight, not on chain." rows={appRows} />
