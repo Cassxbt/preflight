@@ -219,7 +219,7 @@ export function Architecture() {
             <span className="h-3 w-3 rounded-full bg-clear shadow-[0_0_14px_var(--clear)]" />
           </div>
           <p className="text-xl font-semibold tracking-tight">Preflight gate</p>
-          <p className="text-xs leading-relaxed text-muted">13 reason codes. Every order re-checked on the server for your wallet and amount.</p>
+          <p className="text-xs leading-relaxed text-muted">14 reason codes. Every order re-checked on the server for your wallet and amount.</p>
         </Bezel>
       </div>
       <div className="grid gap-4">
