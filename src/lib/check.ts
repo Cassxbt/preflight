@@ -29,7 +29,14 @@ export type CheckInput = {
   retired?: LifecycleEvidence;
   deadlineAhead?: LifecycleEvidence;
   issuer?: Outcome<{ fetchedAt: string; mintLinked: boolean; statementPresent: boolean; linkedMints: string[]; captureIntact: boolean }>;
-  catalog: Outcome<{ listed: boolean; symbol?: string; markPrice?: number; retrievedAt: string; mintForLifecycleSymbol?: string | null }>;
+  catalog: Outcome<{
+    listed: boolean;
+    symbol?: string;
+    markPrice?: number;
+    tokenPrice?: number;
+    retrievedAt: string;
+    mintForLifecycleSymbol?: string | null;
+  }>;
   mintState: Outcome<{ paused: boolean | null; decimals: number; multiplier: number; feeBps: number | null }>;
   destAccount?: Outcome<{ exists: boolean; frozen: boolean }>;
   quote?: Outcome<{ hasRoute: boolean; sizeImpactPct: number | null; usdcInRaw: bigint; netOutRaw: bigint; minOutRaw: bigint | null }>;
@@ -47,6 +54,7 @@ export type CheckResult = {
     premiumPct?: number;
     worstPrice?: number;
     worstPremiumPct?: number;
+    listedPremiumPct?: number;
     sizeImpactPct?: number;
     netOutUi?: number;
     walletSolCostLamports?: number;
@@ -157,7 +165,22 @@ export function runCheck(input: CheckInput): CheckResult {
   }
 
   if (input.quote === undefined) {
-    notEvaluated.push("NO_EXECUTABLE_ROUTE", "ABOVE_MARK", "THIN_ROUTE");
+    notEvaluated.push("NO_EXECUTABLE_ROUTE", "THIN_ROUTE");
+    // Without a wallet there is no fill to price, but the issuer's own listed price is already a warning.
+    const listing = input.catalog.ok ? input.catalog.value : null;
+    if (listing?.listed && listing.markPrice && listing.tokenPrice) {
+      const listedPremiumPct = (listing.tokenPrice / listing.markPrice - 1) * 100;
+      metrics.listedPremiumPct = listedPremiumPct;
+      if (listedPremiumPct > ABOVE_MARK_THRESHOLD_PCT) {
+        disclose(
+          "ABOVE_MARK",
+          `PreStocks lists this token at $${listing.tokenPrice.toFixed(2)}, ${listedPremiumPct.toFixed(1)}% above its own mark of $${listing.markPrice.toFixed(2)} (policy threshold ${ABOVE_MARK_THRESHOLD_PCT}%). Your price at your size is checked when you prepare an order.`,
+          { basis: "catalog", markPrice: listing.markPrice, tokenPrice: listing.tokenPrice, catalogRetrievedAt: listing.retrievedAt },
+        );
+      }
+    } else if (input.catalog.ok) {
+      notEvaluated.push("ABOVE_MARK");
+    }
   } else if (!input.quote.ok) {
     hold("SOURCE_UNAVAILABLE", `Quote unavailable: ${input.quote.error}`, { source: "jupiter" });
     notEvaluated.push("ABOVE_MARK", "THIN_ROUTE");

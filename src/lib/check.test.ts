@@ -73,6 +73,33 @@ describe("canonical buy", () => {
   });
 });
 
+describe("wallet-free preview pricing", () => {
+  const listed = (tokenPrice: number) => ok({ listed: true, symbol: "OPENAI", markPrice: 1023.96, tokenPrice, retrievedAt: NOW });
+
+  it("discloses the issuer's own listed premium when it is above the policy", () => {
+    const r = runCheck(preview({ catalog: listed(1333.13) }));
+    expect(r.status).toBe("DISCLOSE");
+    expect(r.signAvailable).toBe(false);
+    expect(r.reasons[0]).toMatchObject({ code: "ABOVE_MARK", evidence: { basis: "catalog" } });
+    expect(r.reasons[0].message).toContain("30.2% above its own mark");
+    expect(r.metrics.listedPremiumPct).toBeCloseTo(30.19, 2);
+  });
+
+  it("does not warn when the listed price is within the policy", () => {
+    expect(runCheck(preview({ catalog: listed(1028.82) })).reasons).toEqual([]);
+  });
+
+  it("marks ABOVE_MARK not evaluated when the catalog has no token price", () => {
+    expect(runCheck(preview()).notEvaluated).toContain("ABOVE_MARK");
+  });
+
+  it("prices a final order from its own fill, never from the listing", () => {
+    const r = runCheck(final({ catalog: listed(1333.13) }));
+    expect(r.metrics.listedPremiumPct).toBeUndefined();
+    expect(r.reasons.find((x) => x.code === "ABOVE_MARK")?.evidence).not.toMatchObject({ basis: "catalog" });
+  });
+});
+
 describe("acceptance 2: expired XAI", () => {
   const xai = { mint: "PreC1KtJ1sBPPqaeeqL6Qb15GTLCYVvyYEwxhdfTwfx", retired: XAI_EVIDENCE, catalog: ok({ listed: false, retrievedAt: NOW }) };
 

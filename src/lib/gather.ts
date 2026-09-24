@@ -84,6 +84,7 @@ export async function gatherPreview(mint: string): Promise<{ input: CheckInput; 
               listed: !!entry,
               symbol: entry?.symbol,
               markPrice: entry?.markPrice,
+              tokenPrice: entry?.tokenPrice,
               retrievedAt: catalog.value.retrievedAt,
               mintForLifecycleSymbol: sameSymbol?.contract_address ?? null,
             },
