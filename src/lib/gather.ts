@@ -23,9 +23,8 @@ async function settle<T>(fn: () => Promise<T>): Promise<Outcome<T>> {
   }
 }
 
-export function parseMint(mint: string): string {
-  const key = new PublicKey(mint);
-  return key.toBase58();
+export function parsePublicKey(value: string): string {
+  return new PublicKey(value).toBase58();
 }
 
 async function solUsd(): Promise<number | null> {
@@ -60,7 +59,7 @@ function toCheckMint(state: MintState) {
   return { paused: state.paused, decimals: state.decimals, multiplier: state.multiplier, feeBps: state.transferFee?.bps ?? null };
 }
 
-// Wallet-free preview: identity, lifecycle and live issuer evidence, mint state. No quote, no transaction.
+// Never quotes or builds a transaction, so it is safe to call without a wallet.
 export async function gatherPreview(mint: string): Promise<{ input: CheckInput; symbol?: string; mintState?: MintState }> {
   const lifecycle = lifecycleFor(mint);
   const [catalog, mintState, issuer] = await Promise.all([
@@ -142,7 +141,6 @@ export async function sizeImpactPct(mint: string, usdcRaw: bigint, outRaw: bigin
   }
 }
 
-// Quotes and dry-runs one order for this wallet. Nothing is signed or sent.
 async function quoteAndSimulate(
   mint: string,
   wallet: string,
@@ -169,7 +167,6 @@ async function quoteAndSimulate(
   };
 }
 
-// Full gather for a final order: everything re-fetched now, for this wallet and amount.
 export async function gatherForOrder(mint: string, wallet: string, usdcRaw: bigint, maxQuotes = 3) {
   const preview = await gatherPreview(mint);
   const input: CheckInput = { ...preview.input };

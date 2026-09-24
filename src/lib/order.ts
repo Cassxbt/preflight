@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { canonicalJson, sha256Hex } from "./canonical";
 import { runCheck, type CheckResult } from "./check";
 import { MAX_ORDER_USDC } from "./constants";
-import { gatherForOrder, parseMint } from "./gather";
+import { gatherForOrder, parsePublicKey } from "./gather";
 import { blocksUntilExpiry, MIN_SECONDS_PER_BLOCK, SUBMIT_MARGIN_BLOCKS } from "./solana";
 import { get, put } from "./store";
 
@@ -51,8 +51,8 @@ export function usdcToRaw(usdc: number): bigint {
 }
 
 export async function createFinalOrder(mintInput: string, walletInput: string, usdc: number): Promise<OrderResponse> {
-  const mint = parseMint(mintInput);
-  const wallet = parseMint(walletInput);
+  const mint = parsePublicKey(mintInput);
+  const wallet = parsePublicKey(walletInput);
   const usdcRaw = usdcToRaw(usdc);
 
   const { input, prepared } = await gatherForOrder(mint, wallet, usdcRaw);

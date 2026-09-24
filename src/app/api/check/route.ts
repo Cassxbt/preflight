@@ -1,12 +1,12 @@
 import type { NextRequest } from "next/server";
 import { runCheck } from "@/lib/check";
-import { gatherPreview, parseMint } from "@/lib/gather";
+import { gatherPreview, parsePublicKey } from "@/lib/gather";
 
 export async function GET(request: NextRequest) {
   const mintParam = request.nextUrl.searchParams.get("mint") ?? "";
   let mint: string;
   try {
-    mint = parseMint(mintParam);
+    mint = parsePublicKey(mintParam);
   } catch {
     return Response.json({ error: "Not a valid Solana mint address." }, { status: 400 });
   }

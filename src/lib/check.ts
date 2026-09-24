@@ -47,7 +47,7 @@ export type CheckResult = {
 
 const SEVERITY: Record<Exclude<Status, "CLEAR">, number> = { HOLD: 2, DISCLOSE: 1 };
 
-// Primary refusal first; within a status, the order reasons are pushed is the display order.
+// HOLD before DISCLOSE; within a status, the primary refusal comes first.
 const PRIMARY_ORDER: ReasonCode[] = [
   "ISSUER_WINDOW_CLOSED",
   "EVIDENCE_CONFLICT",

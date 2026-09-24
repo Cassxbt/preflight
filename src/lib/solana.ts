@@ -97,7 +97,6 @@ export type SimulationResult = {
   accounts: SimulatedAccount[];
 };
 
-// Dry-runs an unsigned transaction and returns the post-state of the requested accounts. Costs nothing.
 export async function simulate(tx: VersionedTransaction, watch: string[]): Promise<SimulationResult> {
   const res = await connection().simulateTransaction(tx, {
     sigVerify: false,

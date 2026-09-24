@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-// Deterministic JSON: sorted object keys, bigint as decimal string. Same input always hashes the same.
+// Deterministic JSON: sorted object keys, bigints as decimal strings.
 export function canonicalJson(value: unknown): string {
   return JSON.stringify(normalize(value));
 }
