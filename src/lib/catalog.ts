@@ -8,6 +8,10 @@ const CatalogEntry = z.object({
   markPrice: z.number().positive(),
   tokenPrice: z.number().positive(),
   image: z.string().url().optional(),
+  description: z.string().optional(),
+  external_url: z.string().url().optional(),
+  markValuation: z.number().optional(),
+  impliedValuation: z.number().optional(),
 });
 
 export type CatalogEntry = z.infer<typeof CatalogEntry>;
