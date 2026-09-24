@@ -285,13 +285,16 @@ export function runCheck(input: CheckInput): CheckResult {
     const orderUsd = input.quote?.ok ? Number(input.quote.value.usdcInRaw) / 1e6 : null;
     const costUsd = input.policy.solUsd !== null ? (cost / 1e9) * input.policy.solUsd : null;
     const pctOfOrder = costUsd !== null && orderUsd ? (costUsd / orderUsd) * 100 : null;
-    const tooHigh = cost > input.policy.maxSolCostLamports || (pctOfOrder !== null && pctOfOrder > input.policy.maxSolCostPctOfOrder);
+    // Without a dollar price the percentage policy cannot be checked, so the cost is disclosed rather than passed.
+    const unpriced = pctOfOrder === null;
+    const tooHigh = unpriced || cost > input.policy.maxSolCostLamports || pctOfOrder > input.policy.maxSolCostPctOfOrder;
     if (tooHigh) {
       const opensAccount = input.destAccount?.ok && !input.destAccount.value.exists;
       const why = opensAccount
         ? "most of it is rent to open your token account for this mint, refundable if you later close that account"
         : "this route may open token accounts in your wallet; their rent comes back only if you later close them";
-      disclose("HIGH_NETWORK_COST", `This order costs your wallet ${(cost / 1e9).toFixed(6)} SOL in network fees and rent; ${why}.`, {
+      const share = unpriced ? " Its share of your order could not be priced just now." : "";
+      disclose("HIGH_NETWORK_COST", `This order costs your wallet ${(cost / 1e9).toFixed(6)} SOL in network fees and rent; ${why}.${share}`, {
         walletSolCostLamports: cost,
         pctOfOrder,
       });

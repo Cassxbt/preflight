@@ -316,9 +316,17 @@ describe("thresholds", () => {
   });
 
   it("discloses HIGH_NETWORK_COST above the lamport cap and not at it", () => {
-    const at = (lamports: number) => codes(final({ simulation: ok({ succeeded: true, creditRaw: 1n, walletSolCostLamports: lamports }), policy: { maxSolCostLamports: 50_000, maxSolCostPctOfOrder: 100, solUsd: null } }));
+    const at = (lamports: number) => codes(final({ simulation: ok({ succeeded: true, creditRaw: 1n, walletSolCostLamports: lamports }), policy: { maxSolCostLamports: 50_000, maxSolCostPctOfOrder: 100, solUsd: 400 } }));
     expect(at(50_000)).not.toContain("HIGH_NETWORK_COST");
     expect(at(50_001)).toContain("HIGH_NETWORK_COST");
+  });
+
+  it("discloses HIGH_NETWORK_COST below the lamport cap when SOL cannot be priced, and stays signable", () => {
+    const r = runCheck(final({ simulation: ok({ succeeded: true, creditRaw: 1n, walletSolCostLamports: 5_000 }), policy: { maxSolCostLamports: 50_000, maxSolCostPctOfOrder: 0.5, solUsd: null } }));
+    const reason = r.reasons.find((x) => x.code === "HIGH_NETWORK_COST");
+    expect(reason?.status).toBe("DISCLOSE");
+    expect(reason?.message).toContain("could not be priced");
+    expect(r.signAvailable).toBe(true);
   });
 
   it("discloses HIGH_NETWORK_COST when the SOL cost exceeds 0.5% of the order in dollars", () => {
