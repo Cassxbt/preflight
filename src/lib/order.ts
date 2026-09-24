@@ -48,16 +48,27 @@ export type OrderResponse =
 
 const MIN_ORDER_USDC = 0.01;
 
+// The caller's mistake, safe to show; anything else thrown while ordering is internal.
+export class InvalidOrderInput extends Error {}
+
 export function usdcToRaw(usdc: number): bigint {
-  if (!Number.isFinite(usdc) || usdc < MIN_ORDER_USDC) throw new Error(`Amount must be at least ${MIN_ORDER_USDC} USDC`);
-  if (usdc > MAX_ORDER_USDC) throw new Error(`Amount exceeds the ${MAX_ORDER_USDC} USDC per-order limit`);
+  if (!Number.isFinite(usdc) || usdc < MIN_ORDER_USDC) throw new InvalidOrderInput(`Amount must be at least ${MIN_ORDER_USDC} USDC`);
+  if (usdc > MAX_ORDER_USDC) throw new InvalidOrderInput(`Amount exceeds the ${MAX_ORDER_USDC} USDC per-order limit`);
   return BigInt(Math.round(usdc * 1e6));
 }
 
+function address(value: string, label: string): string {
+  try {
+    return parsePublicKey(value);
+  } catch {
+    throw new InvalidOrderInput(`${label} is not a valid Solana address`);
+  }
+}
+
 export async function createFinalOrder(mintInput: string, walletInput: string, usdc: number): Promise<OrderResponse> {
-  const mint = parsePublicKey(mintInput);
-  const wallet = parsePublicKey(walletInput);
-  if (!PublicKey.isOnCurve(new PublicKey(wallet).toBytes())) throw new Error("Wallet must be a signing address, not a program-derived address");
+  const mint = address(mintInput, "Mint");
+  const wallet = address(walletInput, "Wallet");
+  if (!PublicKey.isOnCurve(new PublicKey(wallet).toBytes())) throw new InvalidOrderInput("Wallet must be a signing address, not a program-derived address");
   const usdcRaw = usdcToRaw(usdc);
 
   const { input, prepared } = await gatherForOrder(mint, wallet, usdcRaw);
