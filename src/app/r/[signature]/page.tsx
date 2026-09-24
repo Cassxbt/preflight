@@ -1,24 +1,38 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { fmtSol, fmtTokens, shortKey, tokensUi } from "@/lib/format";
+import { fmtDate, fmtSol, fmtTokens, fmtUsd, shortKey, tokensUi } from "@/lib/format";
 import { buildReceipt } from "@/lib/receipt";
+import { SiteFooter, SiteHeader } from "../../_site/chrome";
+import { Bezel, Cta, Eyebrow } from "../../_site/primitives";
+import { StatusLight } from "../../_site/verdict-card";
+import { ReceiptTicket } from "../../_site/visuals";
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <>
-      <dt className="opacity-70">{label}</dt>
-      <dd className="font-mono break-all">{children}</dd>
-    </>
-  );
+export async function generateMetadata(props: PageProps<"/r/[signature]">): Promise<Metadata> {
+  const receipt = await buildReceipt((await props.params).signature).catch(() => null);
+  if (!receipt) return { title: "Receipt not found · Preflight" };
+  const usdc = receipt.chainVerified.usdcDebitedRaw ? Number(receipt.chainVerified.usdcDebitedRaw) / 1e6 : null;
+  return { title: `Receipt · ${usdc ?? "?"} USDC → ${receipt.symbol ?? "token"} · Preflight` };
 }
 
-function Section({ title, note, children }: { title: string; note: React.ReactNode; children: React.ReactNode }) {
+const TAG: Record<string, string> = { chain: "text-clear", app: "text-muted", issuer: "text-disclose" };
+
+function Group({ title, tag, note, rows }: { title: string; tag: "chain" | "app" | "issuer"; note: string; rows: [string, React.ReactNode][] }) {
   return (
-    <section className="space-y-2 rounded border border-current/15 p-4">
-      <h2 className="font-semibold">{title}</h2>
-      <p className="text-xs opacity-60">{note}</p>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">{children}</dl>
-    </section>
+    <Bezel className="h-full" inner="p-6">
+      <div className="flex items-center justify-between">
+        <p className="font-semibold tracking-tight">{title}</p>
+        <span className={`font-mono text-[10px] tracking-[0.18em] uppercase ${TAG[tag]}`}>{tag}</span>
+      </div>
+      <p className="mt-1 text-xs text-muted">{note}</p>
+      <dl className="mt-5 divide-y divide-white/[0.06]">
+        {rows.map(([label, value]) => (
+          <div key={label} className="flex items-baseline justify-between gap-4 py-2.5">
+            <dt className="text-[13px] text-muted">{label}</dt>
+            <dd className="tabular text-right font-mono text-[13px] break-all">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </Bezel>
   );
 }
 
@@ -29,85 +43,97 @@ export default async function ReceiptPage(props: PageProps<"/r/[signature]">) {
 
   const { chainVerified: chain, appRecorded: app, issuerAttested: issuer } = receipt;
   const tokens = (raw?: string) => (raw === undefined ? "—" : `${fmtTokens(tokensUi(raw, receipt.decimals, receipt.multiplier))} ${receipt.symbol ?? ""}`);
-  const creditGap =
-    chain.tokenCreditedRaw !== undefined ? ((Number(chain.tokenCreditedRaw) / Number(app.expectedNetOutRaw) - 1) * 100).toFixed(2) : null;
+  const gap = chain.tokenCreditedRaw !== undefined ? (Number(chain.tokenCreditedRaw) / Number(app.expectedNetOutRaw) - 1) * 100 : null;
+  const lifecycle = issuer?.lifecycle as { statement?: string } | null | undefined;
+
+  const chainRows: [string, React.ReactNode][] = chain.found
+    ? [
+        ["Result", chain.success === undefined ? "—" : <StatusLight key="r" status={chain.success ? "CLEAR" : "HOLD"} />],
+        ["Block time", chain.blockTime ? fmtDate(chain.blockTime, true) : "—"],
+        ["Slot", chain.slot?.toLocaleString("en-US") ?? "—"],
+        ["Fee payer", chain.feePayer ? shortKey(chain.feePayer) : "—"],
+        ["USDC debited", chain.usdcDebitedRaw !== undefined ? `${(Number(chain.usdcDebitedRaw) / 1e6).toFixed(6)} USDC` : "—"],
+        ["Tokens credited", tokens(chain.tokenCreditedRaw)],
+        ["Wallet SOL spent", chain.walletSolSpentLamports !== undefined ? fmtSol(chain.walletSolSpentLamports) : "—"],
+        ["of which network fee", chain.networkFeeLamports !== undefined ? fmtSol(chain.networkFeeLamports) : "—"],
+      ]
+    : [
+        [
+          "Status",
+          chain.lookupError
+            ? "The chain could not be read just now. Reload; this does not mean the purchase failed."
+            : chain.expired
+              ? "Expired before landing. It can never execute, and no funds moved."
+              : "Not found on chain yet. Reload in a minute.",
+        ],
+      ];
+
+  const appRows: [string, React.ReactNode][] = [
+    ["Verdict", <StatusLight key="v" status={app.status} />],
+    ["Reasons", app.reasons.length ? app.reasons.map((r) => r.code).join(", ") : "none"],
+    ["Acknowledged", app.ackedReasons === null ? "not recorded (before 24 Sep logging)" : app.ackedReasons.length ? app.ackedReasons.join(", ") : "nothing to acknowledge"],
+    ["Checked", fmtDate(app.checkedAt, true)],
+    ["Expected credit", tokens(app.expectedNetOutRaw)],
+    ["Actual vs expected", gap === null ? "—" : `${gap >= 0 ? "+" : "−"}${Math.abs(gap).toFixed(2)}%`],
+    [
+      "Jupiter reported",
+      !app.executeReported
+        ? "no answer; the chain is authoritative"
+        : app.executeReported.status === "Success"
+          ? `Success · ${tokens(app.executeReported.outputAmountResult)}`
+          : `${app.executeReported.status} · ${app.executeReported.error ?? "no reason"} (${app.executeReported.code})`,
+    ],
+    ["Expected SOL cost", fmtSol(app.expectedSolCostLamports)],
+    ["Route", `Jupiter · ${app.router}`],
+    ["Verdict SHA-256", `${app.verdictHash.slice(0, 16)}…`],
+  ];
+
+  const issuerRows: [string, React.ReactNode][] = issuer
+    ? [
+        ["Issuer mark", issuer.markPrice !== null ? fmtUsd(issuer.markPrice) : "—"],
+        ["Catalog read", issuer.catalogRetrievedAt ? fmtDate(issuer.catalogRetrievedAt, true) : "—"],
+        ["Lifecycle notice", lifecycle?.statement ?? "none on file"],
+      ]
+    : [["Issuer evidence", "not recorded"]];
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 space-y-6 px-4 py-12">
-      <header className="space-y-1">
-        <Link href="/" className="text-sm underline opacity-70">
-          Preflight
-        </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">Receipt</h1>
-        <p className="font-mono text-xs break-all opacity-70">{signature}</p>
-        <a href={`https://solscan.io/tx/${signature}`} target="_blank" rel="noreferrer" className="text-sm underline">
-          View on Solscan
-        </a>
-      </header>
+    <div className="relative flex flex-1 flex-col overflow-x-clip pt-4">
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[600px]">
+        <div className="grid-backdrop absolute inset-0 opacity-60" />
+      </div>
+      <SiteHeader links={false} />
+      <main className="relative mx-auto w-full max-w-6xl flex-1 space-y-12 px-4 pt-16 pb-24">
+        <div className="grid items-center gap-12 lg:grid-cols-[1fr_1fr]">
+          <div className="space-y-6">
+            <Eyebrow>Preflight receipt</Eyebrow>
+            <h1 className="font-display text-6xl leading-[0.95] tracking-[-0.02em]">
+              {chain.usdcDebitedRaw ? `${Number(chain.usdcDebitedRaw) / 1e6} USDC` : "Purchase"} <em className="text-muted">into {receipt.symbol ?? "token"}.</em>
+            </h1>
+            <p className="max-w-md text-[15px] leading-relaxed text-muted">
+              What the chain proves, what Preflight recorded before you signed, and what the issuer published, kept apart so each can be checked on its own.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Cta href={`https://solscan.io/tx/${signature}`}>View on Solscan</Cta>
+              <Cta href={`/api/receipt/${signature}`} variant="quiet">
+                Receipt JSON
+              </Cta>
+            </div>
+          </div>
+          <ReceiptTicket receipt={receipt} />
+        </div>
 
-      <Section title="Chain verified" note="Read from Solana just now. Anyone can reproduce these numbers from the signature.">
-        {chain.found ? (
-          <>
-            <Row label="Result">{chain.success === undefined ? "—" : chain.success ? "Succeeded" : "Failed on chain"}</Row>
-            <Row label="Block time">{chain.blockTime ?? "—"}</Row>
-            <Row label="Slot">{chain.slot}</Row>
-            <Row label="Fee payer">{chain.feePayer && shortKey(chain.feePayer)}</Row>
-            <Row label="USDC debited">{chain.usdcDebitedRaw !== undefined ? `${Number(chain.usdcDebitedRaw) / 1e6} USDC` : "—"}</Row>
-            <Row label="Tokens credited">{tokens(chain.tokenCreditedRaw)}</Row>
-            <Row label="Wallet SOL spent">{chain.walletSolSpentLamports !== undefined ? fmtSol(chain.walletSolSpentLamports) : "—"}</Row>
-            <Row label="of which network fee">{chain.networkFeeLamports !== undefined ? fmtSol(chain.networkFeeLamports) : "—"}</Row>
-          </>
-        ) : (
-          <Row label="Status">
-            {chain.lookupError
-              ? "The chain could not be read just now. Reload to try again; this does not mean the purchase failed."
-              : chain.expired
-                ? "Expired before landing. This transaction can never execute, and no funds moved."
-                : "Not found on chain yet. If it lands it will appear here; reload in a minute."}
-          </Row>
-        )}
-      </Section>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Group title="Chain verified" tag="chain" note="Read from Solana just now. Anyone can reproduce it from the signature." rows={chainRows} />
+          <Group title="App recorded" tag="app" note="What Preflight checked and expected before signing. Stored by Preflight, not on chain." rows={appRows} />
+          <Group title="Issuer attested" tag="issuer" note="What PreStocks published at check time. Preflight quotes it; it does not vouch for it." rows={issuerRows} />
+        </div>
 
-      <Section title="App recorded" note="What Preflight checked and expected before you signed. Stored by this app; not provable on chain.">
-        <Row label="Verdict">{app.status}</Row>
-        <Row label="Reasons">{app.reasons.length ? app.reasons.map((r) => r.code).join(", ") : "none"}</Row>
-        <Row label="Acknowledged">
-          {app.ackedReasons === null ? "not recorded for this receipt" : app.ackedReasons.length ? app.ackedReasons.join(", ") : "nothing to acknowledge"}
-        </Row>
-        <Row label="Checked at">{app.checkedAt}</Row>
-        <Row label="Expected credit">{tokens(app.expectedNetOutRaw)}</Row>
-        <Row label="Actual credit">
-          {tokens(chain.tokenCreditedRaw)}
-          {creditGap !== null && ` (${creditGap}% vs expected)`}
-        </Row>
-        <Row label="Jupiter reported">
-          {!app.executeReported
-            ? "No answer from Jupiter; the chain section above is authoritative"
-            : app.executeReported.status === "Success"
-              ? `Success, ${tokens(app.executeReported.outputAmountResult)}`
-              : `${app.executeReported.status}: ${app.executeReported.error ?? "no reason given"} (code ${app.executeReported.code})`}
-        </Row>
-        <Row label="Expected SOL cost">{fmtSol(app.expectedSolCostLamports)}</Row>
-        <Row label="Route">Jupiter ({app.router})</Row>
-        <Row label="Verdict hash">{app.verdictHash}</Row>
-      </Section>
-      <p className="text-xs opacity-60">
-        The verdict hash is the SHA-256 of the verdict object in{" "}
-        <a href={`/api/receipt/${signature}`} className="underline">
-          this receipt&apos;s JSON
-        </a>
-        , serialized with sorted keys. Recompute it to check the record was not changed after signing.
-      </p>
-
-      {issuer && (
-        <Section title="Issuer attested" note="What the issuer published at check time. Preflight quotes it; it does not vouch for it.">
-          <Row label="Catalog retrieved">{issuer.catalogRetrievedAt ?? "—"}</Row>
-          <Row label="Issuer mark price">{issuer.markPrice !== null ? `$${issuer.markPrice.toFixed(2)}` : "—"}</Row>
-          <Row label="Lifecycle notice">
-            {issuer.lifecycle ? String((issuer.lifecycle as { statement?: string }).statement ?? "") : "none on file"}
-          </Row>
-        </Section>
-      )}
-    </main>
+        <p className="max-w-3xl text-xs leading-relaxed text-muted">
+          The verdict SHA-256 is computed over the verdict object in the receipt JSON, serialized with sorted keys. It lets you detect later edits if you saved the
+          JSON at signing time; it is not anchored on chain.
+        </p>
+      </main>
+      <SiteFooter />
+    </div>
   );
 }
