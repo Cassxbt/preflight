@@ -9,7 +9,13 @@ export type IssuerEvidence = {
   statementPresent: boolean;
   linkedMints: string[];
   captureIntact: boolean;
+  notices: string[];
 };
+
+export type IssuerNotices = { issuerUrl: string; fetchedAt: string; lines: string[] };
+
+// Only the issuer's own token pages are fetched, whatever URL a catalog row carries.
+export const ISSUER_PAGE = /^https:\/\/(www\.)?prestocks\.com\/[a-z0-9-]+\/?$/i;
 
 const PAGE_CACHE_MS = 5 * 60_000;
 const pages = new Map<string, { html: string; fetchedAt: string }>();
@@ -40,6 +46,19 @@ export function pageText(html: string): string {
 export function linkedMints(html: string): string[] {
   const found = visibleMarkup(html).matchAll(/<a\b[^>]*\shref="https:\/\/solscan\.io\/token\/([1-9A-HJ-NP-Za-km-z]{32,44})"/gi);
   return [...new Set([...found].map((m) => m[1]))];
+}
+
+// PreStocks announces lifecycle events in a short banner that says what holders must do and by when.
+const LIFECYCLE_WORDS = /\b(expires?|expired|worthless|must be swapped|swapped into|converted? into|redeem(ed|able)?|redemption|delist(ed|ing)?|wind(ing)?[- ]down|will be burned)\b/i;
+const BLOCK_END = /<\/(?:span|p|div|li|h[1-6]|section|article)>|<br\s*\/?>/i;
+const MAX_NOTICE_CHARS = 600;
+
+export function issuerNotices(html: string): string[] {
+  const blocks = visibleMarkup(html)
+    .split(BLOCK_END)
+    .map(pageText)
+    .filter((text) => text.length <= MAX_NOTICE_CHARS && LIFECYCLE_WORDS.test(text));
+  return [...new Set(blocks)];
 }
 
 export function inspectIssuerPage(html: string, entry: Pick<LifecycleEntry, "mint" | "statement">) {
@@ -73,5 +92,10 @@ async function fetchIssuerPage(url: string): Promise<{ html: string; fetchedAt: 
 // The live page is the evidence; the reviewed capture's hash is its provenance.
 export async function verifyIssuerEvidence(entry: LifecycleEntry): Promise<IssuerEvidence> {
   const [page, intact] = await Promise.all([fetchIssuerPage(entry.issuerUrl), captureIntact(entry)]);
-  return { fetchedAt: page.fetchedAt, captureIntact: intact, ...inspectIssuerPage(page.html, entry) };
+  return { fetchedAt: page.fetchedAt, captureIntact: intact, notices: issuerNotices(page.html), ...inspectIssuerPage(page.html, entry) };
+}
+
+export async function readIssuerNotices(issuerUrl: string): Promise<IssuerNotices> {
+  const page = await fetchIssuerPage(issuerUrl);
+  return { issuerUrl, fetchedAt: page.fetchedAt, lines: issuerNotices(page.html) };
 }

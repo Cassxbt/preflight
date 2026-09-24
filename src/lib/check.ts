@@ -14,6 +14,7 @@ export type ReasonCode =
   | "SOURCE_UNAVAILABLE"
   | "EVIDENCE_CONFLICT"
   | "ISSUER_DEADLINE"
+  | "ISSUER_NOTICE"
   | "ABOVE_MARK"
   | "THIN_ROUTE"
   | "HIGH_NETWORK_COST";
@@ -31,6 +32,7 @@ export type CheckInput = {
   retired?: LifecycleEvidence;
   deadlineAhead?: LifecycleEvidence;
   issuer?: Outcome<{ fetchedAt: string; mintLinked: boolean; statementPresent: boolean; linkedMints: string[]; captureIntact: boolean }>;
+  notices?: Outcome<{ issuerUrl: string; fetchedAt: string; lines: string[] }>;
   catalog: Outcome<{
     listed: boolean;
     symbol?: string;
@@ -85,6 +87,7 @@ const PRIMARY_ORDER: ReasonCode[] = [
   "NO_EXECUTABLE_ROUTE",
   "SIMULATION_FAILED",
   "ISSUER_DEADLINE",
+  "ISSUER_NOTICE",
   "ABOVE_MARK",
   "THIN_ROUTE",
   "HIGH_NETWORK_COST",
@@ -102,6 +105,8 @@ const SIGNING_REQUIRES = [
 ];
 
 export const MAX_EVIDENCE_AGE_MS = 24 * 60 * 60_000;
+
+const normalized = (text: string) => text.replace(/\s+/g, " ").trim().toLowerCase();
 
 export function runCheck(input: CheckInput): CheckResult {
   const reasons: Reason[] = [];
@@ -190,6 +195,26 @@ export function runCheck(input: CheckInput): CheckResult {
       sha256: d.sha256,
       liveVerifiedAt,
     });
+  }
+
+  // The registry holds reviewed terms; anything else the issuer announces is shown in its own words until reviewed.
+  if (input.notices === undefined) {
+    if (input.catalog.ok && input.catalog.value.listed) notEvaluated.push("ISSUER_NOTICE");
+  } else if (!input.notices.ok) {
+    notEvaluated.push("ISSUER_NOTICE");
+  } else {
+    const reviewed = normalized(lifecycle?.statement ?? "");
+    const unreviewed = input.notices.value.lines.filter((line) => {
+      const text = normalized(line);
+      return reviewed === "" || !(text.includes(reviewed) || reviewed.includes(text));
+    });
+    if (unreviewed.length) {
+      disclose("ISSUER_NOTICE", `The issuer's page carries a notice Preflight has not reviewed: “${unreviewed.join(" ")}”`, {
+        issuerUrl: input.notices.value.issuerUrl,
+        fetchedAt: input.notices.value.fetchedAt,
+        notices: unreviewed,
+      });
+    }
   }
 
   if (input.quote === undefined) {

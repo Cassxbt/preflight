@@ -39,6 +39,7 @@ function final(over: Partial<CheckInput> = {}): CheckInput {
     quote: quote({ sizeImpactPct: 0.01, usdcInRaw: 2_000_000n, netOutRaw: 1_897_345n }),
     simulation: ok({ succeeded: true, creditRaw: 1_897_345n, walletSolCostLamports: 6_000 }),
     policy: { maxSolCostLamports: 50_000, maxSolCostPctOfOrder: 0.5, solUsd: 200 },
+    notices: ok({ issuerUrl: "https://www.prestocks.com/anthropic", fetchedAt: NOW, lines: [] }),
     ...over,
   };
 }
@@ -440,5 +441,39 @@ describe("ordering", () => {
   it("lists HOLD reasons before DISCLOSE reasons", () => {
     const r = runCheck(final({ deadlineAhead: SPACEX_EVIDENCE, destAccount: ok({ exists: true, frozen: true }) }));
     expect(r.reasons.map((x) => x.status)).toEqual(["HOLD", "DISCLOSE"]);
+  });
+});
+
+describe("unreviewed issuer notices", () => {
+  const NEW_NOTICE = "Anthropic PreStocks tokens must be swapped into $ANTHx before 11:59pm UTC on 1 June 2027, or they will expire worthless.";
+  const notices = (lines: string[]) => ok({ issuerUrl: "https://www.prestocks.com/anthropic", fetchedAt: NOW, lines });
+
+  it("discloses a notice the registry has not reviewed, in the issuer's words, and stays signable", () => {
+    const r = runCheck(final({ notices: notices([NEW_NOTICE]) }));
+    const reason = r.reasons.find((x) => x.code === "ISSUER_NOTICE");
+    expect(reason).toMatchObject({ status: "DISCLOSE", evidence: { issuerUrl: "https://www.prestocks.com/anthropic", notices: [NEW_NOTICE] } });
+    expect(reason?.message).toContain(NEW_NOTICE);
+    expect(r.signAvailable).toBe(true);
+  });
+
+  it("stays quiet when the only notice is the reviewed statement, even with extra words around it", () => {
+    const spacex = final({ deadlineAhead: SPACEX_EVIDENCE, issuer: verified(), notices: notices([`${SPACEX_EVIDENCE.statement} Read more`]) });
+    expect(codes(spacex)).not.toContain("ISSUER_NOTICE");
+  });
+
+  it("discloses a second notice on a registry token", () => {
+    const spacex = final({ deadlineAhead: SPACEX_EVIDENCE, issuer: verified(), notices: notices([SPACEX_EVIDENCE.statement, "Redemption opens 1 March 2027."]) });
+    expect(runCheck(spacex).reasons.find((x) => x.code === "ISSUER_NOTICE")?.evidence).toMatchObject({ notices: ["Redemption opens 1 March 2027."] });
+  });
+
+  it("marks notices not checked when the issuer page cannot be read, without blocking", () => {
+    const r = runCheck(final({ notices: fail("prestocks.com returned HTTP 503") }));
+    expect(r.notEvaluated).toContain("ISSUER_NOTICE");
+    expect(r.signAvailable).toBe(true);
+  });
+
+  it("does not look for notices on a mint PreStocks does not list", () => {
+    const r = runCheck(final({ catalog: ok({ listed: false, retrievedAt: NOW }), notices: undefined }));
+    expect(r.notEvaluated).not.toContain("ISSUER_NOTICE");
   });
 });

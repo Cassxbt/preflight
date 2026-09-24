@@ -5,7 +5,7 @@ import { runCheck, type CheckInput, type Outcome } from "./check";
 import { USDC_MINT } from "./constants";
 import { serverEnv } from "./env";
 import { metaOrder, type MetaOrder } from "./jupiter";
-import { verifyIssuerEvidence } from "./issuer";
+import { ISSUER_PAGE, readIssuerNotices, verifyIssuerEvidence, type IssuerEvidence } from "./issuer";
 import { lifecycleFor, type LifecycleEntry } from "./lifecycle";
 import { readMintState, type MintState } from "./mintState";
 import { connection, simulate } from "./solana";
@@ -79,6 +79,7 @@ export async function gatherPreview(mint: string): Promise<{ input: CheckInput; 
       now: new Date().toISOString(),
       ...lifecycleInputs(lifecycle),
       issuer,
+      notices: await noticesFor(lifecycle, issuer, entry?.external_url),
       catalog: catalog.ok
         ? {
             ok: true,
@@ -95,6 +96,16 @@ export async function gatherPreview(mint: string): Promise<{ input: CheckInput; 
       mintState: mintState.ok ? { ok: true, value: toCheckMint(mintState.value) } : mintState,
     },
   };
+}
+
+// Registry tokens reuse the page already fetched for their evidence; every other listed token has its own page read.
+async function noticesFor(lifecycle: LifecycleEntry | undefined, issuer: Outcome<IssuerEvidence> | undefined, issuerUrl: string | undefined): Promise<CheckInput["notices"]> {
+  if (lifecycle) {
+    if (!issuer) return undefined;
+    return issuer.ok ? { ok: true, value: { issuerUrl: lifecycle.issuerUrl, fetchedAt: issuer.value.fetchedAt, lines: issuer.value.notices } } : issuer;
+  }
+  if (!issuerUrl || !ISSUER_PAGE.test(issuerUrl)) return undefined;
+  return settle(() => readIssuerNotices(issuerUrl));
 }
 
 export type PreparedQuote = {
