@@ -31,7 +31,13 @@ export function PriceChart({ mint, initial, mark }: { mint: string; initial: Can
   const [range, setRange] = useState<Range>("1W");
   const [candles, setCandles] = useState<Candle[]>(initial);
   const [hovered, setHovered] = useState<Candle | null>(null);
-  const [status, setStatus] = useState<"ready" | "loading" | "failed">(initial.length ? "ready" : "loading");
+  const [status, setStatus] = useState<"ready" | "loading" | "failed">(initial.length > 1 ? "ready" : "loading");
+  const latest = useRef(0);
+  const retry = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (retry.current) clearTimeout(retry.current);
+  }, []);
 
   useEffect(() => {
     const node = container.current;
@@ -75,27 +81,36 @@ export function PriceChart({ mint, initial, mark }: { mint: string; initial: Can
     chart.current?.timeScale().fitContent();
   }, [candles]);
 
+  // Only the most recent request may update the chart, so a slow older range never lands under a newer tab.
   async function load(next: Range, attempt = 0) {
+    if (retry.current) clearTimeout(retry.current);
+    const request = ++latest.current;
     setRange(next);
     setStatus("loading");
     try {
       const res = await fetch(`/api/token/${mint}/chart?range=${next}`);
+      if (request !== latest.current) return;
       if (res.ok) {
         const body = (await res.json()) as { candles: Candle[] };
-        setCandles(body.candles);
-        setStatus(body.candles.length > 1 ? "ready" : "failed");
-        return;
+        if (request !== latest.current) return;
+        if (body.candles.length > 1) {
+          setCandles(body.candles);
+          setStatus("ready");
+          return;
+        }
       }
-    } catch {}
+    } catch {
+      if (request !== latest.current) return;
+    }
     if (attempt < 1) {
-      setTimeout(() => void load(next, attempt + 1), 2500);
+      retry.current = setTimeout(() => void load(next, attempt + 1), 2500);
       return;
     }
     setStatus("failed");
   }
 
   const loadMissingHistory = useEffectEvent(() => {
-    if (!initial.length) void load("1W");
+    if (initial.length < 2) void load("1W");
   });
 
   useEffect(() => {

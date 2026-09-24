@@ -97,7 +97,9 @@ function useLiveQuotes(): { quotes: Record<string, LiveQuote>; at: string | null
       } catch {}
     }
     const first = setTimeout(load, 0);
-    const id = setInterval(load, LIVE_REFRESH_MS);
+    const id = setInterval(() => {
+      if (!document.hidden) void load();
+    }, LIVE_REFRESH_MS);
     return () => {
       cancelled = true;
       clearTimeout(first);
@@ -179,15 +181,17 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
     setBusy("Checking");
     selected.current = target.trim();
     if (catalog?.tokens.some((t) => t.mint === target.trim())) loadDetail(target.trim());
+    const requested = target.trim();
     try {
-      const res = await fetch(`/api/check?mint=${encodeURIComponent(target.trim())}`);
+      const res = await fetch(`/api/check?mint=${encodeURIComponent(requested)}`);
       const body = await res.json();
+      if (selected.current !== requested) return;
       if (!res.ok) setError(body.error ?? "Check failed.");
       else setPreview(body);
     } catch {
-      setError("Network error.");
+      if (selected.current === requested) setError("Network error.");
     } finally {
-      setBusy(null);
+      if (selected.current === requested) setBusy(null);
     }
   }
 
@@ -197,7 +201,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
   }
 
   async function prepareOrder() {
-    if (!publicKey) return;
+    if (!publicKey || !preview) return;
     clearOrder();
     setError(null);
     setBusy("Quoting and simulating");
@@ -205,7 +209,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ mint: mint.trim(), wallet: publicKey.toBase58(), usdc: Number(usdc) }),
+        body: JSON.stringify({ mint: preview.mint, wallet: publicKey.toBase58(), usdc: Number(usdc) }),
       });
       const body = await res.json();
       if (body.ok) setOrder({ ...body.order, deadline: Date.now() + body.order.expiresInMs });
@@ -258,7 +262,8 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
   const previewStatus = preview && preview.status === "CLEAR" ? "PREVIEW" : preview?.status;
   const tokens = (raw: string) => (order ? fmtTokens(tokensUi(raw, order.expected.decimals, order.expected.multiplier)) : "");
   const windowMs = order ? order.expiresInMs : 1;
-  const unlisted = preview && !detail && !catalog?.tokens.some((t) => t.mint === preview.mint);
+  const retired = preview ? catalog?.retired.find((r) => r.mint === preview.mint) : undefined;
+  const unlisted = preview && !detail && !retired && !catalog?.tokens.some((t) => t.mint === preview.mint);
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[1fr_1.05fr]">
@@ -278,6 +283,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
                 value={mint}
                 onChange={(e) => {
                   setMint(e.target.value);
+                  selected.current = e.target.value.trim();
                   reset();
                 }}
                 className={`${field} min-w-0 flex-1 text-[12px]`}
@@ -482,6 +488,16 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
             <button onClick={() => loadDetail(selected.current)} className={quiet}>
               Retry
             </button>
+          </Bezel>
+        ) : retired ? (
+          <Bezel inner="space-y-4 p-6">
+            <p className="font-mono text-[10px] tracking-[0.18em] text-hold uppercase">Issuer conversion window closed</p>
+            <p className="font-display text-4xl leading-none tracking-tight">{retired.symbol}</p>
+            <p className="text-sm leading-relaxed text-muted">
+              The issuer&apos;s window to convert {retired.symbol} closed on {fmtDate(retired.deadline).split(",")[0]}, and the token is no longer in the PreStocks
+              catalog. The mint still exists on chain, so a wallet can still show it.
+            </p>
+            {retired.statement && <blockquote className="border-l border-hold/50 pl-3 text-[13px] leading-relaxed text-muted">&ldquo;{retired.statement}&rdquo;</blockquote>}
           </Bezel>
         ) : unlisted ? (
           <Bezel inner="space-y-3 p-6">

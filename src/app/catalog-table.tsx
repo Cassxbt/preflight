@@ -14,7 +14,7 @@ export type CatalogView = {
     listedPremiumPct: number;
     deadline: string | null;
   }[];
-  retired: { symbol: string; mint: string; deadline: string }[];
+  retired: { symbol: string; mint: string; deadline: string; statement?: string }[];
 };
 
 export type LiveQuote = { price: number; move: "up" | "down" | null };
@@ -50,9 +50,11 @@ export function CatalogTable({ catalog, selected, onPick, live, liveAt }: Props)
             </span>
             <span
               key={price}
-              className={`tabular rounded-md px-1.5 text-right font-mono text-[13px] ${quote?.move === "up" ? "animate-tick-up" : quote?.move === "down" ? "animate-tick-down" : ""}`}
+              title={quote ? "Live on-chain price" : "Listed price; no live quote right now"}
+              className={`tabular rounded-md px-1.5 text-right font-mono text-[13px] ${quote ? "" : "text-muted"} ${quote?.move === "up" ? "animate-tick-up" : quote?.move === "down" ? "animate-tick-down" : ""}`}
             >
               {fmtUsd(price)}
+              {!quote && <span className="ml-1 text-[9px] tracking-wider uppercase">listed</span>}
             </span>
             <span className={`tabular text-right font-mono text-[12px] ${over ? "text-disclose" : "text-muted"}`}>{signedPct(premium)}</span>
           </button>

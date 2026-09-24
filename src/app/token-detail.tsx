@@ -43,16 +43,20 @@ export function TokenDetailView({ detail, livePrice }: { detail: TokenDetail; li
           </div>
         </div>
         <div className="text-right">
-          <p className="flex items-center justify-end gap-1.5 font-mono text-[10px] tracking-wider text-clear uppercase">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-clear" /> Live
-          </p>
+          {livePrice !== null ? (
+            <p className="flex items-center justify-end gap-1.5 font-mono text-[10px] tracking-wider text-clear uppercase">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-clear" /> Live
+            </p>
+          ) : (
+            <p className="font-mono text-[10px] tracking-wider text-muted uppercase">Listed price</p>
+          )}
           {change !== null && <p className={`tabular mt-1 font-mono text-[11px] ${change >= 0 ? "text-clear" : "text-hold"}`}>{signedPct(change, 2)} 24h</p>}
         </div>
       </div>
 
       <PriceChart key={detail.mint} mint={detail.mint} initial={detail.candles} mark={detail.markPrice} />
       <p className={`font-mono text-[11px] ${vsMark > 5 ? "text-disclose" : "text-muted"}`}>
-        Live price is {signedPct(vsMark)} against the issuer mark of {fmtUsd(detail.markPrice)}.
+        {livePrice !== null ? "Live" : "Listed"} price {fmtUsd(price)} is {signedPct(vsMark)} against the issuer mark of {fmtUsd(detail.markPrice)}.
       </p>
 
       {detail.description && <p className="text-sm leading-relaxed text-muted text-pretty">{detail.description}</p>}

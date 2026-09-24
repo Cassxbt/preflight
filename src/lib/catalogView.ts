@@ -16,6 +16,6 @@ export async function catalogView() {
       listedPremiumPct: (e.tokenPrice / e.markPrice - 1) * 100,
       deadline: lifecycle.find((l) => l.mint === e.contract_address && l.state === "deadline_ahead")?.deadline ?? null,
     })),
-    retired: lifecycle.filter((l) => l.state === "window_closed").map((l) => ({ symbol: l.symbol, mint: l.mint, deadline: l.deadline })),
+    retired: lifecycle.filter((l) => l.state === "window_closed").map((l) => ({ symbol: l.symbol, mint: l.mint, deadline: l.deadline, statement: l.statement })),
   };
 }
