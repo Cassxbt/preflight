@@ -9,6 +9,7 @@ export type LifecycleEntry = {
   statement: string;
   capturedAt: string;
   sha256: string;
+  capture: string;
 };
 
 const entries = registry.entries as LifecycleEntry[];
