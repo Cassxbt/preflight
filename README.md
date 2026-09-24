@@ -6,7 +6,7 @@
 
 A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits between the Jupiter quote and your signature, and holds the buy when the PreStocks catalog, the issuer's published terms or the mint itself say stop.
 
-[![tests](https://img.shields.io/badge/tests-110%20passing-3fb950)](#tests)
+[![tests](https://img.shields.io/badge/tests-124%20passing-3fb950)](#tests)
 [![PreStocks](https://img.shields.io/badge/PreStocks-catalog%20%2B%20issuer%20pages-111)](https://prestocks.com)
 [![Jupiter](https://img.shields.io/badge/Jupiter-Swap%20V2%20Meta-111)](https://dev.jup.ag)
 [![Solana](https://img.shields.io/badge/Solana-mainnet-9945FF)](https://solscan.io/tx/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT)
@@ -155,7 +155,7 @@ Fourteen reasons in two severities. `HOLD` means no transaction is offered. `DIS
 | `SOURCE_UNAVAILABLE` | HOLD | A required source cannot be read |
 | `EVIDENCE_CONFLICT` | HOLD | The live issuer page no longer links the mint or no longer carries the reviewed terms, or the bundled capture no longer matches its hash, or the catalog lists that token's symbol under a different mint |
 | `ISSUER_DEADLINE` | DISCLOSE | The issuer has published a future conversion deadline (SPACEX: 12 Mar 2027) |
-| `ISSUER_NOTICE` | DISCLOSE | The token's PreStocks page carries a lifecycle notice (a swap, expiry, redemption or delisting) that is not the reviewed statement in the registry. The notice is quoted in the issuer's words. |
+| `ISSUER_NOTICE` | DISCLOSE | The token's PreStocks page carries a lifecycle notice (a swap, expiry, conversion, redemption, halt or delisting) that does not exactly match a notice on the reviewed, hashed capture. Each notice is quoted in the issuer's words. If the page cannot be read, or does not link the token's own mint, notices are reported as not checked. |
 | `ABOVE_MARK` | DISCLOSE | More than 5% above the issuer mark. A preview compares the listed price. An order compares the expected fill and the worst fill the transaction allows. |
 | `THIN_ROUTE` | DISCLOSE | Your size moves the price more than 3% compared with a $1 quote on the same router |
 | `HIGH_NETWORK_COST` | DISCLOSE | Fees and rent exceed 50,000 lamports or 0.5% of the order. The cost is also disclosed when SOL cannot be priced. |
@@ -245,7 +245,7 @@ Put these in `.env.local`:
 npm test
 ```
 
-110 tests in 9 files cover:
+124 tests in 9 files cover:
 
 - every reason path, with boundary tests for the three numeric policies
 - the worst-case price policy
@@ -255,7 +255,7 @@ npm test
 - the slippage floor and same-router size impact
 - submit races, lost responses, expiry and message tampering, and that Jupiter receives exactly the verified bytes
 - order input errors kept apart from internal failures
-- reading lifecycle notices from issuer pages, and disclosing any the registry has not reviewed
+- reading whole lifecycle banners from issuer pages, and disclosing any that differ from the reviewed capture, including an amendment to a reviewed banner
 - recomputing the verdict hash from stored JSON
 - the per-IP rate limit, and refusing file storage on Vercel
 
