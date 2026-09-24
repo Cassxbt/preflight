@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Preflight",
-  description: "Check a PreStocks token's issuer lifecycle, catalog status and executable price before you buy.",
+  title: "Preflight · check the token before you sign",
+  description: "A pre-trade check for PreStocks tokens on Solana: issuer lifecycle, current mint, price against the issuer's mark, and the exact transaction you sign.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
