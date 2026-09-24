@@ -14,8 +14,9 @@ const getReceipt = cache(buildReceipt);
 export async function generateMetadata(props: PageProps<"/r/[signature]">): Promise<Metadata> {
   const receipt = await getReceipt((await props.params).signature).catch(() => null);
   if (!receipt) return { title: "Receipt not found · Preflight" };
-  const usdc = receipt.chainVerified.usdcDebitedRaw ? Number(receipt.chainVerified.usdcDebitedRaw) / 1e6 : null;
-  return { title: `Receipt · ${usdc ?? "?"} USDC → ${receipt.symbol ?? "token"} · Preflight` };
+  const { success, usdcDebitedRaw } = receipt.chainVerified;
+  const usdc = success && usdcDebitedRaw ? Number(usdcDebitedRaw) / 1e6 : null;
+  return { title: usdc !== null ? `Receipt · ${usdc} USDC → ${receipt.symbol ?? "token"} · Preflight` : `Receipt · ${receipt.symbol ?? "token"} · Preflight` };
 }
 
 const TAG: Record<string, string> = { chain: "text-clear", app: "text-muted", issuer: "text-disclose" };
@@ -54,6 +55,10 @@ export default async function ReceiptPage(props: PageProps<"/r/[signature]">) {
   const pricePaid = usdcSpent !== null && tokensReceived ? usdcSpent / tokensReceived : null;
   const vsMark = pricePaid !== null && issuer?.markPrice ? (pricePaid / issuer.markPrice - 1) * 100 : null;
   const company = receipt.symbol ? receipt.symbol.charAt(0) + receipt.symbol.slice(1).toLowerCase() : "the token";
+  const [lead, rest] =
+    chain.success === true && usdcSpent !== null
+      ? [`${usdcSpent} USDC`, `into ${company}.`]
+      : [chain.success === false ? "Failed" : chain.expired ? "Expired" : "Pending", `buy of ${company}.`];
 
   const chainRows: [string, React.ReactNode][] = chain.found
     ? [
@@ -117,7 +122,7 @@ export default async function ReceiptPage(props: PageProps<"/r/[signature]">) {
           <div className="space-y-6">
             <Eyebrow>Preflight receipt</Eyebrow>
             <h1 className="font-display text-6xl leading-[0.95] tracking-[-0.02em]">
-              {usdcSpent !== null ? `${usdcSpent} USDC` : "Purchase"} <em className="text-muted">into {company}.</em>
+              {lead} <em className="text-muted">{rest}</em>
             </h1>
             <p className="max-w-md text-[15px] leading-relaxed text-muted">
               What the chain proves, what Preflight checked before you signed, and what the issuer published, kept apart so each can be checked on its own.

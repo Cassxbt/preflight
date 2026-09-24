@@ -245,6 +245,17 @@ export function ReceiptTicket({ receipt, tilt = true }: { receipt: Receipt; tilt
   const { chainVerified: chain, appRecorded: app } = receipt;
   const tokens = (raw?: string) => (raw === undefined ? "—" : fmtTokens(tokensUi(raw, receipt.decimals, receipt.multiplier)));
   const gap = chain.tokenCreditedRaw !== undefined ? (Number(chain.tokenCreditedRaw) / Number(app.expectedNetOutRaw) - 1) * 100 : null;
+  const state = chain.found
+    ? chain.success === false
+      ? "failed on chain"
+      : chain.blockTime
+        ? fmtDate(chain.blockTime)
+        : "confirmed"
+    : chain.expired
+      ? "expired, never landed"
+      : chain.lookupError
+        ? "chain unreadable"
+        : "pending";
   const rows: [string, string, string][] = [
     ["USDC debited", chain.usdcDebitedRaw !== undefined ? (Number(chain.usdcDebitedRaw) / 1e6).toFixed(6) : "—", "chain"],
     [`${receipt.symbol ?? "Tokens"} credited`, tokens(chain.tokenCreditedRaw), "chain"],
@@ -259,7 +270,7 @@ export function ReceiptTicket({ receipt, tilt = true }: { receipt: Receipt; tilt
     >
       <div className="flex items-center justify-between gap-4">
         <p className="font-semibold tracking-tight">Preflight receipt</p>
-        <p className="font-mono text-[10px] tracking-wider text-[#15161a]/60 uppercase">{chain.blockTime ? fmtDate(chain.blockTime) : "pending"}</p>
+        <p className="font-mono text-[10px] tracking-wider text-[#15161a]/60 uppercase">{state}</p>
       </div>
       <p className="mt-1 font-mono text-[10px] break-all text-[#15161a]/50">{receipt.signature}</p>
       <Perforation />
