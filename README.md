@@ -6,7 +6,7 @@
 
 A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits between the Jupiter quote and your signature, and holds the buy when the PreStocks catalog, the issuer's published terms or the mint itself say stop.
 
-[![tests](https://img.shields.io/badge/tests-90%20passing-3fb950)](#tests)
+[![tests](https://img.shields.io/badge/tests-100%20passing-3fb950)](#tests)
 [![PreStocks](https://img.shields.io/badge/PreStocks-catalog%20%2B%20issuer%20pages-111)](https://prestocks.com)
 [![Jupiter](https://img.shields.io/badge/Jupiter-Swap%20V2%20Meta-111)](https://dev.jup.ag)
 [![Solana](https://img.shields.io/badge/Solana-mainnet-9945FF)](https://solscan.io/tx/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV)
@@ -202,7 +202,7 @@ flowchart LR
 | Eligibility | **Not decided.** Preflight shows the issuer's eligibility terms. It does not check your jurisdiction. |
 | `THIN_ROUTE` on every order | **Partial.** When no $1 quote on the same router is available, it is reported as not evaluated. |
 | Order size | **Capped at $5 on the server.** This runs on mainnet with real money. |
-| Public API | **Rate-limited per IP**: 60 checks and 10 orders a minute. The limit protects paid RPC and Jupiter quota, so it fails open if Redis is down. |
+| Public API | **Rate-limited per IP**: per minute, 60 checks, 10 orders, 20 submissions and 60 receipt lookups. The limit protects paid RPC and Jupiter quota, so it fails open within half a second if Redis is slow or down. |
 | Acknowledgements on the first mainnet receipt | **Not recorded.** That purchase predates acknowledgement logging, and its receipt says so. |
 
 ## Run it locally
@@ -226,7 +226,7 @@ Put these in `.env.local`:
 npm test
 ```
 
-90 tests in 8 files cover:
+100 tests in 9 files cover:
 
 - every reason path, with boundary tests for the three numeric policies
 - the worst-case price policy
@@ -234,7 +234,8 @@ npm test
 - issuer-page spoofing (mints only in comments or scripts, statements only in `hidden` elements, a one-character capture edit)
 - partial catalog failures
 - the slippage floor and same-router size impact
-- submit races, lost responses, expiry and message tampering
+- submit races, lost responses, expiry and message tampering, and that Jupiter receives exactly the verified bytes
+- order input errors kept apart from internal failures
 - recomputing the verdict hash from stored JSON
 - the per-IP rate limit, and refusing file storage on Vercel
 
