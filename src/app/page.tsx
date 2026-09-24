@@ -34,6 +34,10 @@ function Heading({ eyebrow, title, lead }: { eyebrow: string; title: string; lea
   );
 }
 
+// One live render a minute serves every visitor; the card shows when that check ran.
+export const dynamic = "force-static";
+export const revalidate = 60;
+
 export default async function Landing() {
   const [xai, catalog, receipt] = await Promise.all([liveXai(), catalogView().catch(() => null), buildReceipt(RECEIPT).catch(() => null)]);
   const tokens = catalog?.tokens ?? [];
