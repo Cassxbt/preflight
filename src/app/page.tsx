@@ -13,7 +13,7 @@ import { Architecture, DeadlineTimeline, LogoMarquee, MiniVerdict, PremiumChart,
 
 const XAI = "PreC1KtJ1sBPPqaeeqL6Qb15GTLCYVvyYEwxhdfTwfx";
 const XAI_LOGO = "https://www.prestocks.com/logos/xai.png";
-const RECEIPT = "5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV";
+const RECEIPT = "3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT";
 
 async function liveXai() {
   try {
@@ -298,7 +298,7 @@ export default async function Landing() {
               <Heading
                 eyebrow="Proof"
                 title="A real purchase on mainnet, checked first."
-                lead="2 USDC into ANTHROPIC through the app on 24 September 2026. The receipt reads the chain live and publishes the verdict it was signed against."
+                lead="1 USDC into SPACEX through this app on 24 September 2026, after acknowledging the issuer's own deadline. The receipt reads the chain live and publishes the verdict it was signed against."
               />
               <Reveal className="flex flex-wrap gap-3">
                 <Cta href={`/r/${RECEIPT}`}>Open the receipt</Cta>

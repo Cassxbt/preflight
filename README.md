@@ -9,11 +9,11 @@ A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits betwee
 [![tests](https://img.shields.io/badge/tests-100%20passing-3fb950)](#tests)
 [![PreStocks](https://img.shields.io/badge/PreStocks-catalog%20%2B%20issuer%20pages-111)](https://prestocks.com)
 [![Jupiter](https://img.shields.io/badge/Jupiter-Swap%20V2%20Meta-111)](https://dev.jup.ag)
-[![Solana](https://img.shields.io/badge/Solana-mainnet-9945FF)](https://solscan.io/tx/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV)
+[![Solana](https://img.shields.io/badge/Solana-mainnet-9945FF)](https://solscan.io/tx/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000)](https://nextjs.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-111)](LICENSE)
 
-[Live app](https://preflight-weld.vercel.app/app) · [Judge it in 90 seconds](#verify-it-yourself) · [Mainnet receipt](https://preflight-weld.vercel.app/r/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV)
+[Live app](https://preflight-weld.vercel.app/app) · [Judge it in 90 seconds](#verify-it-yourself) · [Mainnet receipt](https://preflight-weld.vercel.app/r/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT)
 
 </div>
 
@@ -106,7 +106,7 @@ curl -s "https://preflight-weld.vercel.app/api/check?mint=PreYKD2kJ5xGgoZ644VPfb
 **The verdict on a real purchase matches the hash recorded when the order was prepared.** The hash is SHA-256 over the verdict object, serialized with sorted keys. You can recompute it:
 
 ```bash
-curl -s https://preflight-weld.vercel.app/api/receipt/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV > r.json
+curl -s https://preflight-weld.vercel.app/api/receipt/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT > r.json
 node -e 'const r=require("./r.json");const s=v=>Array.isArray(v)?"["+v.map(s)+"]":v&&typeof v=="object"?"{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+s(v[k]))+"}":JSON.stringify(v);console.log(require("crypto").createHash("sha256").update(s(r.appRecorded.verdict)).digest("hex")===r.appRecorded.verdictHash)'
 # true
 ```
@@ -122,19 +122,22 @@ shasum -a 256 src/data/captures/2026-09-23_xai.html
 
 ## Mainnet proof
 
-This purchase was made with a real wallet through Preflight running locally, before the Vercel deploy. Its receipt record was then copied into production storage. The chain facts on the receipt page are read from Solana.
+This purchase was made on 24 September 2026 through the deployed app at preflight-weld.vercel.app, with a real wallet:
 
 | | |
 |---|---|
-| Transaction | [`5XcWu1fa…jwPqwXPV`](https://solscan.io/tx/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV), slot 449,898,611 |
-| Order | 2 USDC into ANTHROPIC through Jupiter (Metis route) |
-| Verdict at signing | `DISCLOSE` · `HIGH_NETWORK_COST`: 0.001522 SOL, 8.8% of a $2 order. Only 0.000034 SOL was the network fee. The other 0.001488 SOL was rent for an empty JUP token account that the Metis route opened in the wallet, and it comes back if that account is closed. |
-| Expected credit | 0.001899039 ANTHROPIC |
-| Credited on chain | 0.001897345 ANTHROPIC, 0.09% below expected and above the guaranteed minimum of 0.001861059 |
-| Price paid | $1,054.10 per token, 1.49% above the issuer mark of $1,038.61 |
-| Receipt | [preflight-weld.vercel.app/r/5XcWu1fa…](https://preflight-weld.vercel.app/r/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV) |
+| Transaction | [`3mgVKNBX…HvVSDprT`](https://solscan.io/tx/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT), slot 450,101,221, finalized |
+| Order | 1 USDC into SPACEX through Jupiter (DFlow route) |
+| Verdict at signing | `DISCLOSE` · `ISSUER_DEADLINE` (the issuer's 12 March 2027 conversion deadline) and `HIGH_NETWORK_COST` |
+| Acknowledged | Both reasons, recorded on the receipt before broadcast |
+| Credited on chain | 0.00846303 SPACEX, exactly the expected amount and above the guaranteed minimum of 0.00829377 |
+| Price paid | $118.16 per token, 20.1% below the issuer mark of $147.97 |
+| Wallet SOL spent | 0.001626 SOL: 0.000005 network fee, and 0.001621 SOL rent for the wallet's new SPACEX token account, which comes back if that account is closed |
+| Receipt | [preflight-weld.vercel.app/r/3mgVKNBX…HvVSDprT](https://preflight-weld.vercel.app/r/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT) |
 
-An earlier attempt expired before it landed. Its signing window came from a fixed timer rather than the chain. That failure led to the chain-derived signing window described under [Engineering decisions](#engineering-decisions).
+The first signature on this order reached the server about four seconds before the route expired. The server refused it as too close to land and sent nothing. The second signature, inside the remaining window, is the one above.
+
+**Earlier purchase.** The first mainnet buy, [`5XcWu1fa…jwPqwXPV`](https://preflight-weld.vercel.app/r/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV), was 2 USDC into ANTHROPIC through Preflight running locally, before the Vercel deploy. Its receipt record was copied into production storage, and it predates acknowledgement logging. One attempt before it expired because its signing window came from a fixed timer rather than the chain. That failure led to the chain-derived signing window described under [Engineering decisions](#engineering-decisions).
 
 ## What it checks
 
@@ -218,7 +221,7 @@ flowchart LR
 | `THIN_ROUTE` on every order | **Partial.** When no $1 quote on the same router is available, it is reported as not evaluated. |
 | Order size | **Capped at $5 on the server.** This runs on mainnet with real money. |
 | Public API | **Rate-limited per IP**: per minute, 60 checks, 10 orders, 20 submissions and 60 receipt lookups. The limit protects paid RPC and Jupiter quota, so it fails open within half a second if Redis is slow or down. |
-| Acknowledgements on the first mainnet receipt | **Not recorded.** That purchase predates acknowledgement logging, and its receipt says so. |
+| Acknowledgements recorded | **Real.** The production receipt records `HIGH_NETWORK_COST` and `ISSUER_DEADLINE`. The earlier local purchase predates acknowledgement logging, and its receipt says so. |
 
 ## Run it locally
 
