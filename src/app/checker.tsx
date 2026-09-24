@@ -39,7 +39,7 @@ type Order = {
 };
 
 // Submit answers that guarantee nothing reached Jupiter, so the purchase lock can be released.
-const NOT_SENT = new Set(["ORDER_NOT_FOUND", "ORDER_EXPIRED", "NOT_ACKNOWLEDGED", "INVALID_TRANSACTION", "MESSAGE_CHANGED", "BAD_SIGNATURE", "NOT_SENT", "BAD_REQUEST"]);
+const NOT_SENT = new Set(["ORDER_NOT_FOUND", "ORDER_EXPIRED", "NOT_ACKNOWLEDGED", "INVALID_TRANSACTION", "MESSAGE_CHANGED", "BAD_SIGNATURE", "NOT_SENT", "BAD_REQUEST", "RATE_LIMITED"]);
 
 // Survives a reload, so a signed purchase whose outcome is unknown is never forgotten.
 const PENDING_KEY = "preflight:signed";
