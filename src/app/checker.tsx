@@ -1,6 +1,7 @@
 "use client";
 
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 import { VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import Link from "next/link";
@@ -13,7 +14,8 @@ import { CatalogTable, type CatalogView, type LiveQuote } from "./catalog-table"
 import { TokenDetailView } from "./token-detail";
 import { NotChecked, ReasonList, signedPct, StatusLight } from "./ui";
 
-const XAI = "PreC1KtJ1sBPPqaeeqL6Qb15GTLCYVvyYEwxhdfTwfx";
+// Opens on a listed token with a live market; the retired XAI is one click away in the list.
+const DEFAULT_MINT = "PreweJYECqtQwBtpxHL171nL2K6umo692gTm7Q3rpgF";
 const LIVE_REFRESH_MS = 15_000;
 
 const OFF_CATALOG_EXAMPLES = [
@@ -116,12 +118,13 @@ const field = "rounded-full bg-raised px-4 py-2.5 font-mono text-sm ring-1 ring-
 
 export default function Checker({ catalog, initialMint }: { catalog: CatalogView | null; initialMint?: string }) {
   const { publicKey, signTransaction } = useWallet();
-  const [mint, setMint] = useState(initialMint ?? XAI);
+  const { setVisible: openWalletModal } = useWalletModal();
+  const [mint, setMint] = useState(initialMint ?? DEFAULT_MINT);
   const [usdc, setUsdc] = useState("2");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [detail, setDetail] = useState<TokenDetail | null>(null);
   const [detailFailed, setDetailFailed] = useState(false);
-  const selected = useRef(initialMint ?? XAI);
+  const selected = useRef(initialMint ?? DEFAULT_MINT);
   const [order, setOrder] = useState<(Order & { deadline: number }) | null>(null);
   const [heldOrder, setHeldOrder] = useState<CheckResult | null>(null);
   const [acked, setAcked] = useState<string[]>([]);
@@ -137,7 +140,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
     return () => clearTimeout(restore);
   }, []);
 
-  const checkInitialMint = useEffectEvent(() => void runPreview(initialMint ?? XAI));
+  const checkInitialMint = useEffectEvent(() => void runPreview(initialMint ?? DEFAULT_MINT));
 
   useEffect(() => {
     const start = setTimeout(checkInitialMint, 0);
@@ -150,9 +153,9 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
     setAcked([]);
   }
 
+  // The previous market view stays up, dimmed, until the next one arrives.
   function reset() {
     setPreview(null);
-    setDetail(null);
     setDetailFailed(false);
     clearOrder();
     setError(null);
@@ -181,6 +184,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
     setBusy("Checking");
     selected.current = target.trim();
     if (catalog?.tokens.some((t) => t.mint === target.trim())) loadDetail(target.trim());
+    else setDetail(null);
     const requested = target.trim();
     try {
       const res = await fetch(`/api/check?mint=${encodeURIComponent(requested)}`);
@@ -307,7 +311,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="font-mono text-[10px] tracking-[0.18em] text-muted uppercase">Preflight verdict</p>
-              {unlisted && <p className="mt-1 font-display text-2xl tracking-tight">{preview?.symbol ?? "Unlisted mint"}</p>}
+              {(unlisted || retired) && <p className="mt-1 text-xl font-semibold tracking-tight">{preview?.symbol ?? "Unlisted mint"}</p>}
             </div>
             {busy ? (
               <span className="flex items-center gap-2 font-mono text-xs text-muted">
@@ -349,9 +353,15 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
                   />
                   <span className="pr-4 font-mono text-xs text-muted">USDC</span>
                 </div>
-                <button onClick={prepareOrder} disabled={!publicKey || !!busy || !!signature || !!pending} className={`${primary} flex-1`}>
-                  {publicKey ? "Prepare order" : "Connect a wallet to buy"}
-                </button>
+                {publicKey ? (
+                  <button onClick={prepareOrder} disabled={!!busy || !!signature || !!pending} className={`${primary} flex-1 whitespace-nowrap`}>
+                    Prepare order
+                  </button>
+                ) : (
+                  <button onClick={() => openWalletModal(true)} className={`${primary} flex-1 whitespace-nowrap`}>
+                    Connect wallet
+                  </button>
+                )}
               </div>
               <p className="text-[11px] text-muted">Orders are capped at 5 USDC while Preflight is a hackathon build. Buying re-checks everything for your wallet and amount.</p>
             </div>
@@ -371,7 +381,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
             <div className="space-y-5">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="font-display text-2xl tracking-tight">
+                  <p className="text-xl font-semibold tracking-tight">
                     {Number(order.usdcInRaw) / 1e6} USDC → {order.symbol}
                   </p>
                   <StatusLight status={order.check.status} />
@@ -476,14 +486,14 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
         </Bezel>
       </div>
 
-      <div className="lg:sticky lg:top-24">
-        {detail ? (
-          <Bezel inner="p-6">
+      <div className="order-first lg:sticky lg:top-24 lg:order-none">
+        {detail && (!retired || detail.mint === preview?.mint) && !unlisted ? (
+          <Bezel inner={`p-6 transition-opacity duration-500 ${detail.mint === selected.current ? "opacity-100" : "opacity-50"}`}>
             <TokenDetailView detail={detail} livePrice={live.quotes[detail.mint]?.price ?? null} />
           </Bezel>
         ) : detailFailed ? (
           <Bezel inner="flex flex-col items-start gap-4 p-6">
-            <p className="font-display text-3xl tracking-tight">Market data is catching up</p>
+            <p className="text-xl font-semibold tracking-tight">Market data is catching up</p>
             <p className="text-sm text-muted">The on-chain market source did not answer in time. The Preflight verdict does not depend on it.</p>
             <button onClick={() => loadDetail(selected.current)} className={quiet}>
               Retry
@@ -492,7 +502,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
         ) : retired ? (
           <Bezel inner="space-y-4 p-6">
             <p className="font-mono text-[10px] tracking-[0.18em] text-hold uppercase">Issuer conversion window closed</p>
-            <p className="font-display text-4xl leading-none tracking-tight">{retired.symbol}</p>
+            <p className="text-2xl font-semibold tracking-tight">{retired.symbol}</p>
             <p className="text-sm leading-relaxed text-muted">
               The issuer&apos;s window to convert {retired.symbol} closed on {fmtDate(retired.deadline).split(",")[0]}, and the token is no longer in the PreStocks
               catalog. The mint still exists on chain, so a wallet can still show it.
@@ -501,7 +511,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
           </Bezel>
         ) : unlisted ? (
           <Bezel inner="space-y-3 p-6">
-            <p className="font-display text-3xl tracking-tight">No market to show</p>
+            <p className="text-xl font-semibold tracking-tight">No market to show</p>
             <p className="text-sm leading-relaxed text-muted">
               This mint is not in the PreStocks catalog, so there is no issuer mark, company profile or listed market to compare against. Only the issuer&apos;s exact mints pass the gate.
             </p>

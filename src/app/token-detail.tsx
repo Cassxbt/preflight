@@ -29,14 +29,13 @@ function Sentiment({ pool }: { pool: NonNullable<TokenDetail["pool"]> }) {
 export function TokenDetailView({ detail, livePrice }: { detail: TokenDetail; livePrice: number | null }) {
   const price = livePrice ?? detail.tokenPrice;
   const vsMark = (price / detail.markPrice - 1) * 100;
-  const change = detail.pool?.change24hPct ?? null;
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           {detail.image && <Image src={detail.image} alt={`${detail.symbol} logo`} width={44} height={44} className="rounded-full ring-1 ring-white/10" />}
           <div>
-            <p className="font-display text-3xl leading-none tracking-tight">{detail.name.replace(/ PreStocks$/, "")}</p>
+            <p className="text-2xl leading-none font-semibold tracking-tight">{detail.name.replace(/ PreStocks$/, "")}</p>
             <p className="mt-1 font-mono text-[11px] text-muted">
               {detail.symbol} · {detail.mint.slice(0, 4)}…{detail.mint.slice(-4)}
             </p>
@@ -50,11 +49,10 @@ export function TokenDetailView({ detail, livePrice }: { detail: TokenDetail; li
           ) : (
             <p className="font-mono text-[10px] tracking-wider text-muted uppercase">Listed price</p>
           )}
-          {change !== null && <p className={`tabular mt-1 font-mono text-[11px] ${change >= 0 ? "text-clear" : "text-hold"}`}>{signedPct(change, 2)} 24h</p>}
         </div>
       </div>
 
-      <PriceChart key={detail.mint} mint={detail.mint} initial={detail.candles} mark={detail.markPrice} />
+      <PriceChart key={detail.mint} mint={detail.mint} initial={detail.candles} mark={detail.markPrice} live={livePrice} />
       <p className={`font-mono text-[11px] ${vsMark > 5 ? "text-disclose" : "text-muted"}`}>
         {livePrice !== null ? "Live" : "Listed"} price {fmtUsd(price)} is {signedPct(vsMark)} against the issuer mark of {fmtUsd(detail.markPrice)}.
       </p>
@@ -68,7 +66,7 @@ export function TokenDetailView({ detail, livePrice }: { detail: TokenDetail; li
           ["Mark valuation", detail.markValuation ? compactUsd(detail.markValuation) : "—"],
           ["Market-implied", detail.impliedValuation ? compactUsd(detail.impliedValuation) : "—"],
           ["Pool liquidity", detail.pool?.liquidityUsd ? compactUsd(detail.pool.liquidityUsd) : "—"],
-          ["Scaled UI", detail.multiplier === 1 ? "none" : `×${detail.multiplier}`],
+          ["Display multiplier", detail.multiplier === 1 ? "none" : `×${Number(detail.multiplier.toFixed(3))}`],
         ].map(([label, value]) => (
           <div key={label} className="bg-surface px-4 py-3">
             <dt className="text-[11px] text-muted">{label}</dt>
@@ -79,13 +77,13 @@ export function TokenDetailView({ detail, livePrice }: { detail: TokenDetail; li
 
       {detail.pool && (
         <div>
-          <p className="mb-3 font-mono text-[10px] tracking-[0.18em] text-muted uppercase">Market sentiment · 24h</p>
+          <p className="mb-3 text-xs font-medium text-muted">Pool flow, last 24 hours</p>
           <Sentiment pool={detail.pool} />
         </div>
       )}
 
       <div>
-        <p className="mb-3 font-mono text-[10px] tracking-[0.18em] text-muted uppercase">Issuer timeline</p>
+        <p className="mb-3 text-xs font-medium text-muted">Issuer timeline</p>
         {detail.lifecycle ? (
           <div className="flex gap-3">
             <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${detail.lifecycle.state === "window_closed" ? "bg-hold" : "bg-disclose"}`} />
