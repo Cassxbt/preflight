@@ -7,7 +7,9 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "prestocks.com", pathname: "/logos/**" },
     ],
   },
+  // Every route that runs a check hashes the bundled issuer captures at request time.
   outputFileTracingIncludes: {
+    "/": ["./src/data/captures/**/*"],
     "/api/check": ["./src/data/captures/**/*"],
     "/api/order": ["./src/data/captures/**/*"],
   },
