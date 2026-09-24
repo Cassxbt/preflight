@@ -4,7 +4,7 @@
 
 **Check the token before you sign.**
 
-A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits between the Jupiter quote and your signature, and holds any buy the issuer's own evidence says you should not make.
+A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits between the Jupiter quote and your signature, and holds the buy when the PreStocks catalog, the issuer's published terms or the mint itself say stop.
 
 [![tests](https://img.shields.io/badge/tests-90%20passing-3fb950)](#tests)
 [![PreStocks](https://img.shields.io/badge/PreStocks-catalog%20%2B%20issuer%20pages-111)](https://prestocks.com)
@@ -38,15 +38,15 @@ I started with the XAI token. The PreStocks page says each XAI token had to be s
 
 Then OPENAI. PreStocks publishes its own mark for every token. At the time of writing, its catalog lists OPENAI **32.8% above that mark**. A swap UI shows the price you will pay. It does not show the issuer's reference price next to it.
 
-These tokens also carry things a normal SPL swap never meets. They are Token-2022 mints with a 1% transfer fee, a display multiplier (one OPENAI on screen is about 1.486 raw units) and a pause switch. The issuer publishes conversion deadlines on web pages, not on chain.
+These tokens also carry things a normal SPL swap never meets. They are Token-2022 mints with a 1% transfer fee, a display multiplier (OPENAI's on-chain amount is multiplied by about 1.486 for display, so one OPENAI on screen is about 0.673 raw tokens) and a pause switch. The issuer publishes conversion deadlines on web pages, not on chain.
 
 Every fact Preflight needs is public, but it is spread across four places: the PreStocks catalog, the issuer's web pages, the mint account and the Jupiter route. Preflight reads all four in the moment before you sign. It will not hand you a transaction to sign while any of them says stop.
 
-The same checks are what make buying the current catalog trustworthy. You get the exact mint PreStocks lists, the issuer's mark next to your real fill, and the issuer's terms, all before you sign. Then a receipt shows what you actually paid.
+The same checks are what make buying the current catalog trustworthy. You get the exact mint PreStocks lists, the issuer's mark next to your real fill, and any deadline the issuer has published, all before you sign. Then a receipt shows what you actually paid.
 
 ## How it works
 
-1. **Check.** Pick a token. Preflight reads the PreStocks catalog, the mint's Token-2022 state and the issuer's lifecycle page, then returns `CLEAR`, `DISCLOSE` or `HOLD`, with a reason for each finding.
+1. **Check.** Pick a token. Preflight reads the PreStocks catalog, the mint's Token-2022 state and, for tokens with a published deadline, the issuer's page. Then it returns `CLEAR`, `DISCLOSE` or `HOLD`, with a reason for each finding.
 2. **Quote and simulate.** When you connect a wallet and enter an amount, Preflight takes a Jupiter Swap V2 order and simulates it against your wallet. The simulation must debit exactly what you asked for and credit tokens. Preflight prices both the expected fill and the worst fill the transaction allows.
 3. **Acknowledge.** A `DISCLOSE` finding has to be acknowledged, one toggle per reason, before signing. A `HOLD` never produces a transaction to sign.
 4. **Sign.** Preflight derives the signature before it broadcasts and takes a lock on the order, so a retry cannot buy twice. It records the verdict, then sends the transaction through Jupiter.
@@ -54,7 +54,7 @@ The same checks are what make buying the current catalog trustworthy. You get th
 
 ## Verify it yourself
 
-Everything below runs against production. You don't need a wallet.
+Everything below runs against production, and you don't need a wallet. The responses are JSON; the blocks below are abridged.
 
 **A token whose conversion window has closed is held.**
 
@@ -79,9 +79,9 @@ status: DISCLOSE
 ABOVE_MARK  PreStocks lists this token at $1,358.20, 32.8% above its own mark of $1,023.12 (policy threshold 5%).
 ```
 
-These are live figures, so the numbers move with the market. A preview without a wallet also lists the checks it could not run yet (route, simulation, account state) under `notEvaluated`. It does not report them as passed.
+These are live figures, so the numbers move with the market. A preview without a wallet lists the route, simulation and account checks it could not run yet under `notEvaluated`, and does not report them as passed. The USDC balance check needs a wallet, so it runs only when you prepare an order.
 
-**The retired OPENAI mint is paused on chain.**
+**The replaced OPENAI mint is paused on chain.**
 
 ```bash
 curl -s "https://preflight-weld.vercel.app/api/check?mint=PreYKD2kJ5xGgoZ644VPfbEN7sW8bWCUREHr5S3ebV9"
@@ -107,7 +107,7 @@ shasum -a 256 src/data/captures/2026-09-23_xai.html
 
 ## Mainnet proof
 
-This purchase was made through the deployed app with a real wallet:
+This purchase was made with a real wallet through Preflight running locally, before the Vercel deploy. Its receipt record was then copied into production storage. The chain facts on the receipt page are read from Solana.
 
 | | |
 |---|---|
@@ -129,15 +129,15 @@ Thirteen reasons in two severities. `HOLD` means no transaction is offered. `DIS
 |---|---|---|
 | `ISSUER_WINDOW_CLOSED` | HOLD | The issuer's conversion deadline for this token has passed |
 | `NOT_IN_CURRENT_CATALOG` | HOLD | The mint is not in the live PreStocks catalog |
-| `MINT_PAUSED` | HOLD | The Token-2022 pausable extension is set |
+| `MINT_PAUSED` | HOLD | The mint's Token-2022 pause flag is on |
 | `DEST_ACCOUNT_FROZEN` | HOLD | Your token account for this mint is frozen |
 | `INSUFFICIENT_USDC` | HOLD | Your wallet cannot cover the order |
 | `NO_EXECUTABLE_ROUTE` | HOLD | Jupiter returns no route for this token at this size |
-| `SIMULATION_FAILED` | HOLD | The simulated transaction fails, or does not debit and credit what was quoted |
-| `SOURCE_UNAVAILABLE` | HOLD | A required source cannot be read, or issuer evidence is older than 24 hours |
-| `EVIDENCE_CONFLICT` | HOLD | The live issuer page no longer links the mint or no longer carries the reviewed terms, or the bundled capture no longer matches its hash |
+| `SIMULATION_FAILED` | HOLD | The simulated transaction fails, does not debit exactly the requested USDC, or credits no tokens |
+| `SOURCE_UNAVAILABLE` | HOLD | A required source cannot be read |
+| `EVIDENCE_CONFLICT` | HOLD | The live issuer page no longer links the mint or no longer carries the reviewed terms, or the bundled capture no longer matches its hash, or the catalog lists that token's symbol under a different mint |
 | `ISSUER_DEADLINE` | DISCLOSE | The issuer has published a future conversion deadline (SPACEX: 12 Mar 2027) |
-| `ABOVE_MARK` | DISCLOSE | The expected fill, or the worst fill the transaction allows, is more than 5% above the issuer mark |
+| `ABOVE_MARK` | DISCLOSE | More than 5% above the issuer mark. A preview compares the listed price. An order compares the expected fill and the worst fill the transaction allows. |
 | `THIN_ROUTE` | DISCLOSE | Your size moves the price more than 3% compared with a $1 quote on the same router |
 | `HIGH_NETWORK_COST` | DISCLOSE | Fees and rent exceed 50,000 lamports or 0.5% of the order. The cost is also disclosed when SOL cannot be priced. |
 
@@ -155,7 +155,7 @@ A check that could not run is listed under `notEvaluated`. It never counts as a 
 | Solana RPC simulation | Exact USDC debit and token credit for your wallet | [`src/lib/solana.ts`](src/lib/solana.ts) `simulate` |
 | GeckoTerminal | Live prices, pool flow and charts in the UI. The verdict never uses it. | [`src/lib/market.ts`](src/lib/market.ts) |
 
-**Remove any one of the gate's sources and Preflight breaks.** GeckoTerminal is the exception, because it only feeds the UI. Without the catalog there is no mark to price against. Without the issuer pages, XAI looks buyable. Without the mint state, a paused token or a raw-unit price slips through. Without Jupiter's order there is no fill to judge and no transaction to sign.
+**Remove any one of the gate's sources and Preflight breaks.** GeckoTerminal is the exception, because it only feeds the UI. Without the catalog there is no mark to price against. Without the issuer pages, a SPACEX buyer gets no warning about the March 2027 deadline, and the XAI hold loses its reason. Without the mint state, a paused token or a raw-unit price slips through. Without Jupiter's order there is no fill to judge and no transaction to sign.
 
 ## Architecture
 
@@ -167,8 +167,9 @@ flowchart LR
   G --> I[Issuer pages + capture hash]
   G --> M[Token-2022 mint state]
   G --> J[Jupiter /order]
+  G --> A[Wallet USDC + token account]
   J --> S[Simulate against wallet]
-  C & I & M & S --> V{runCheck}
+  C & I & M & A & J & S --> V{runCheck}
   V -->|HOLD| X[No transaction offered]
   V -->|CLEAR / DISCLOSE| T[Transaction + reasons]
   T -->|signed, acknowledged| U["/api/submit"]
@@ -184,18 +185,18 @@ flowchart LR
 - **The worst fill is priced, not only the expected one.** The transaction guarantees only its minimum output, so `ABOVE_MARK` is checked against both prices.
 - **The signing window comes from the chain.** The order expires 12 blocks before the transaction's `lastValidBlockHeight`, and `/api/submit` checks the block height again before broadcasting. The first mainnet attempt expired on a fixed timer. This reduces that risk but cannot remove it, because blocks keep arriving between the last check and Jupiter's broadcast.
 - **The signature is recorded before broadcast.** Preflight takes the signature from the signed bytes, checks that the fee payer at index 0 signed the exact message it issued, takes an atomic lock and writes the receipt record before calling Jupiter. A lost response can show "outcome unknown", but a retry can't send the same order again.
-- **The simulation has to debit what you asked.** A route counts only if the simulation debits exactly the requested USDC and credits more than zero tokens. The minimum output is enforced on chain by Jupiter's program, and Preflight prices it as the worst case. Preflight takes up to three quotes and keeps the cheapest one that passes.
-- **Slippage has a floor above the transfer fee.** A 1% Token-2022 fee under 1% slippage fails every route. The floor is the fee plus 100 bps.
+- **The simulation has to debit what you asked.** A route counts only if the simulation debits exactly the requested USDC and credits more than zero tokens. The minimum output is enforced on chain by Jupiter's program, and Preflight prices it as the worst case. When the first route costs too much in fees and rent, Preflight re-quotes up to three times and keeps the cheapest one that passes.
+- **Slippage has a floor above the transfer fee.** In our measurement, a 1% Token-2022 fee under 1% slippage failed 2 of 3 simulations. The floor is the fee plus 100 bps.
 - **Prices are scaled per unit.** On-chain prices are per raw unit, and display prices are per scaled unit. Every comparison uses the multiplier active at that moment.
-- **Issuer evidence has to be visible.** A mint only counts if it appears in an anchor link. A statement only counts if it survives the removal of comments, scripts, styles, templates and elements with the `hidden` attribute. Preflight does not render CSS, so text a stylesheet hides would still count.
+- **Issuer evidence has to be visible.** A mint only counts if it appears in an anchor link. A statement only counts if it survives the removal of comments, scripts, styles, templates and elements with the `hidden` attribute. This is a regex pass, not a DOM. Markup nested inside a `hidden` element, and text a stylesheet hides, can still count.
 
 ## What it does not do
 
 | Claim | Status |
 |---|---|
-| Holds buys the issuer's own evidence rules out | **Real.** Live issuer page plus a hashed capture, checked on every order |
-| Prices your fill against the issuer mark | **Real.** Expected and worst-case, from a simulated Jupiter transaction |
-| One order cannot execute twice | **Real.** Atomic lock in Upstash Redis. Tested with parallel submissions, and in production 1 of 10 concurrent claims won. |
+| Holds buys the issuer's published terms rule out | **Real, for tokens in the registry.** [`src/data/lifecycle.json`](src/data/lifecycle.json) records the issuer's published deadlines, currently XAI and SPACEX. Each check re-reads the live page (cached up to 5 minutes) and verifies the capture hash. Tokens without an entry have no deadline on file and are not checked against an issuer page. |
+| Prices your fill against the issuer mark | **Real.** The expected fill comes from Jupiter's quote and the worst case from its guaranteed minimum. The simulation confirms the exact USDC debit. |
+| One order cannot execute twice | **Real.** Atomic lock (Redis `SET NX` in production). Tested with parallel submissions against the file store. |
 | Verdict stored on chain | **No.** Preflight submits Jupiter's prepared message unchanged, and its exact-message check rejects any addition, so there is no memo. The verdict is stored by Preflight. Its hash detects edits if you saved the JSON, but it is not anchored on chain. |
 | Mark freshness | **Partial.** PreStocks does not timestamp its mark. Preflight records when it read the catalog. |
 | Eligibility | **Not decided.** Preflight shows the issuer's eligibility terms. It does not check your jurisdiction. |
