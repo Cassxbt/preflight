@@ -4,10 +4,10 @@ export const utc = (iso: string) => `${iso.slice(11, 19)} UTC`;
 export const signedPct = (n: number, digits = 1) => `${n >= 0 ? "+" : ""}${n.toFixed(digits)}%`;
 
 const BADGE: Record<string, string> = {
-  CLEAR: "bg-emerald-600 text-white",
-  DISCLOSE: "bg-amber-400 text-black",
-  HOLD: "bg-red-600 text-white",
-  PREVIEW: "border border-current/40",
+  CLEAR: "bg-clear text-black",
+  DISCLOSE: "bg-disclose text-black",
+  HOLD: "bg-hold text-black",
+  PREVIEW: "border border-line text-muted",
 };
 
 export function StatusBadge({ status }: { status: string }) {

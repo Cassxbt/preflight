@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #07080a;
+  --surface: #0d0f12;
+  --raised: #13161a;
+  --line: rgb(255 255 255 / 0.08);
+  --foreground: #eceef1;
+  --muted: #8a919b;
+  --clear: #34d399;
+  --disclose: #fbbf24;
+  --hold: #f87171;
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-clear: var(--clear);
+  --color-disclose: var(--disclose);
+  --color-hold: var(--hold);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+@utility grid-backdrop {
+  background-image:
+    radial-gradient(ellipse 60% 50% at 50% 0%, rgb(255 255 255 / 0.07), transparent 70%),
+    linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    56px 56px,
+    56px 56px;
+}
+
+.wallet-adapter-button-trigger {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  height: 38px;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 14px;
 }
