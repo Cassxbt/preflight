@@ -43,7 +43,7 @@ export type StoredOrder = {
 };
 
 export type OrderResponse =
-  | { ok: true; order: Omit<StoredOrder, "unsignedTx" | "messageBase64" | "route"> & { transaction: string; router: string } }
+  | { ok: true; order: Omit<StoredOrder, "unsignedTx" | "messageBase64" | "route"> & { transaction: string; router: string; expiresInMs: number } }
   | { ok: false; status: "HOLD" | "ERROR"; check?: CheckResult; error?: string };
 
 const MIN_ORDER_USDC = 0.01;
@@ -134,7 +134,9 @@ export async function createFinalOrder(mintInput: string, walletInput: string, u
   await put("orders", orderId, canonicalJson({ ...stored, verdict }));
 
   const { unsignedTx, messageBase64: _message, route, ...publicFields } = stored;
-  return { ok: true, order: { ...publicFields, transaction: unsignedTx, router: route.router } };
+  // Relative, so the countdown does not depend on the browser's clock agreeing with ours.
+  const expiresInMs = Date.parse(stored.expiresAt) - Date.now();
+  return { ok: true, order: { ...publicFields, transaction: unsignedTx, router: route.router, expiresInMs } };
 }
 
 export async function loadOrder(orderId: string): Promise<(StoredOrder & { verdict: unknown }) | null> {

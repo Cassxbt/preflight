@@ -22,7 +22,7 @@ type Preview = CheckResult & { mint: string; symbol: string | null; checkedAt: s
 
 type Order = {
   orderId: string;
-  expiresAt: string;
+  expiresInMs: number;
   symbol?: string;
   usdcInRaw: string;
   check: CheckResult;
@@ -32,6 +32,9 @@ type Order = {
   transaction: string;
   router: string;
 };
+
+// Submit answers that guarantee nothing reached Jupiter, so the purchase lock can be released.
+const NOT_SENT = new Set(["ORDER_NOT_FOUND", "ORDER_EXPIRED", "NOT_ACKNOWLEDGED", "INVALID_TRANSACTION", "MESSAGE_CHANGED", "BAD_SIGNATURE", "NOT_SENT", "BAD_REQUEST"]);
 
 // Survives a reload, so a signed purchase whose outcome is unknown is never forgotten.
 const PENDING_KEY = "preflight:signed";
@@ -54,19 +57,19 @@ function writePending(signature: string | null) {
 const fromBase64 = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 const toBase64 = (bytes: Uint8Array) => btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
 
-function useSecondsLeft(expiresAt: string | undefined): number {
+function useSecondsLeft(deadline: number | undefined): number {
   const [secondsLeft, setSecondsLeft] = useState(0);
   useEffect(() => {
-    if (!expiresAt) return;
-    const update = () => setSecondsLeft(Math.max(0, Math.floor((Date.parse(expiresAt) - Date.now()) / 1000)));
+    if (!deadline) return;
+    const update = () => setSecondsLeft(Math.max(0, Math.floor((deadline - Date.now()) / 1000)));
     const first = setTimeout(update, 0);
     const id = setInterval(update, 500);
     return () => {
       clearTimeout(first);
       clearInterval(id);
     };
-  }, [expiresAt]);
-  return expiresAt ? secondsLeft : 0;
+  }, [deadline]);
+  return deadline ? secondsLeft : 0;
 }
 
 const button = "rounded bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-40";
@@ -76,14 +79,14 @@ export default function Checker({ catalog }: { catalog: CatalogView | null }) {
   const [mint, setMint] = useState(XAI);
   const [usdc, setUsdc] = useState("2");
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [order, setOrder] = useState<Order | null>(null);
+  const [order, setOrder] = useState<(Order & { deadline: number }) | null>(null);
   const [heldOrder, setHeldOrder] = useState<CheckResult | null>(null);
   const [acked, setAcked] = useState<string[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [signature, setSignature] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
-  const secondsLeft = useSecondsLeft(order?.expiresAt);
+  const secondsLeft = useSecondsLeft(order?.deadline);
 
   useEffect(() => {
     const restore = setTimeout(() => setPending(readPending()), 0);
@@ -140,7 +143,7 @@ export default function Checker({ catalog }: { catalog: CatalogView | null }) {
         body: JSON.stringify({ mint: mint.trim(), wallet: publicKey.toBase58(), usdc: Number(usdc) }),
       });
       const body = await res.json();
-      if (body.ok) setOrder(body.order);
+      if (body.ok) setOrder({ ...body.order, deadline: Date.now() + body.order.expiresInMs });
       else if (body.check) setHeldOrder(body.check);
       else setError(body.error ?? "Order failed.");
     } catch {
@@ -170,6 +173,10 @@ export default function Checker({ catalog }: { catalog: CatalogView | null }) {
         });
         const body = await res.json();
         if (!body.ok) setError(`${body.code}: ${body.error}`);
+        if (!body.ok && NOT_SENT.has(body.code)) {
+          setSignature(null);
+          dismissPending();
+        }
       } catch {
         setError("OUTCOME_UNKNOWN: Preflight did not hear back after sending. The purchase may still land. Do not buy again; open the receipt.");
       }
