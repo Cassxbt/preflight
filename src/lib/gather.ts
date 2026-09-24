@@ -1,6 +1,6 @@
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { PublicKey, VersionedTransaction } from "@solana/web3.js";
-import { fetchCatalog, findExact } from "./catalog";
+import { fetchCatalog, findExact, type Catalog } from "./catalog";
 import { runCheck, type CheckInput, type Outcome } from "./check";
 import { USDC_MINT } from "./constants";
 import { serverEnv } from "./env";
@@ -62,11 +62,13 @@ function toCheckMint(state: MintState) {
 // Never quotes or builds a transaction, so it is safe to call without a wallet.
 export async function gatherPreview(mint: string): Promise<{ input: CheckInput; symbol?: string; mintState?: MintState }> {
   const lifecycle = lifecycleFor(mint);
-  const [catalog, mintState, issuer] = await Promise.all([
+  const [fetched, mintState, issuer] = await Promise.all([
     settle(fetchCatalog),
     settle(() => readMintState(mint)),
     lifecycle ? settle(() => verifyIssuerEvidence(lifecycle)) : Promise.resolve(undefined),
   ]);
+  const catalog: Outcome<Catalog> =
+    fetched.ok && fetched.value.unreadableMints.includes(mint) ? { ok: false, error: "the catalog entry for this mint is malformed" } : fetched;
   const entry = catalog.ok ? findExact(catalog.value, mint) : undefined;
   const sameSymbol = lifecycle && catalog.ok ? catalog.value.entries.find((e) => e.symbol === lifecycle.symbol) : undefined;
   return {

@@ -12,7 +12,7 @@ const CatalogEntry = z.object({
 
 export type CatalogEntry = z.infer<typeof CatalogEntry>;
 
-export type Catalog = { entries: CatalogEntry[]; retrievedAt: string };
+export type Catalog = { entries: CatalogEntry[]; unreadableMints: string[]; retrievedAt: string };
 
 async function fetchCatalogOnce(): Promise<Catalog> {
   const res = await fetch(PRESTOCKS_CATALOG_URL, {
@@ -21,9 +21,21 @@ async function fetchCatalogOnce(): Promise<Catalog> {
     signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) throw new Error(`PreStocks catalog HTTP ${res.status}`);
-  const entries = z.array(CatalogEntry).parse(await res.json());
-  if (entries.length === 0) throw new Error("PreStocks catalog is empty");
-  return { entries, retrievedAt: new Date().toISOString() };
+  return parseCatalog(await res.json());
+}
+
+// One malformed row must not take every token down with it; that row's own mint is reported instead.
+export function parseCatalog(body: unknown): Catalog {
+  const rows = z.array(z.unknown()).parse(body);
+  const entries: CatalogEntry[] = [];
+  const unreadableMints: string[] = [];
+  for (const row of rows) {
+    const parsed = CatalogEntry.safeParse(row);
+    if (parsed.success) entries.push(parsed.data);
+    else if (typeof (row as { contract_address?: unknown })?.contract_address === "string") unreadableMints.push((row as { contract_address: string }).contract_address);
+  }
+  if (entries.length === 0) throw new Error("PreStocks catalog has no readable entries");
+  return { entries, unreadableMints, retrievedAt: new Date().toISOString() };
 }
 
 // Mark prices do not move meaningfully within this window, and the endpoint rate-limits bursts.
