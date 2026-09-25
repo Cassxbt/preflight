@@ -102,8 +102,8 @@ export default async function Landing() {
               Check the token <em className="bg-gradient-to-b from-foreground to-foreground/45 bg-clip-text pr-1 text-transparent">before you sign.</em>
             </h1>
             <p className="max-w-[52ch] text-lg leading-relaxed text-muted text-pretty">
-              Preflight checks a PreStocks token against its issuer, its mint and its route. It holds anything that should not be bought, and you
-              acknowledge every warning before signing the exact transaction it checked.
+              Preflight checks a PreStocks token against its issuer, its mint and its route. It holds a buy the catalog, the mint, the route or a reviewed
+              issuer deadline rules out, and you acknowledge every warning before signing the exact transaction it checked.
             </p>
             <div className="flex flex-wrap gap-3">
               <Cta href="/app">Launch app</Cta>

@@ -409,7 +409,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
                   [
                     ["You receive (simulated)", `${tokens(order.expected.netOutRaw)} ${order.symbol}`],
                     [
-                      "Minimum if the swap succeeds",
+                      "Route minimum (Jupiter-reported)",
                       `${tokens(order.expected.minOutRaw)}${order.check.metrics.worstPrice !== undefined ? ` · up to ${fmtUsd(order.check.metrics.worstPrice)}` : ""}`,
                     ],
                     [
@@ -429,7 +429,7 @@ export default function Checker({ catalog, initialMint }: { catalog: CatalogView
                   </div>
                 ))}
               </dl>
-              <p className="text-[11px] text-muted">Below the minimum the swap reverts and you keep your USDC, but the network fee is still charged.</p>
+              <p className="text-[11px] text-muted">The route minimum is the lowest credit Jupiter reports for this route. Preflight prices it as your worst case; it does not independently verify how each router enforces it.</p>
 
               <ReasonList reasons={order.check.reasons} empty="No configured warning triggered at this size and time." />
               <NotChecked codes={order.check.notEvaluated} />
