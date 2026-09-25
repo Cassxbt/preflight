@@ -1,0 +1,130 @@
+{
+  "check": {
+    "metrics": {
+      "executablePrice": 118.16098962192028,
+      "netOutUi": 0.00846303,
+      "premiumPct": -20.144299439382007,
+      "sizeImpactPct": 0,
+      "walletSolCostLamports": 1625906,
+      "worstPremiumPct": -18.514548035117105,
+      "worstPrice": 120.57250235568527
+    },
+    "notEvaluated": [],
+    "reasons": [
+      {
+        "code": "ISSUER_DEADLINE",
+        "evidence": {
+          "capturedAt": "2026-09-23T15:13:27Z",
+          "deadline": "2027-03-12T23:59:00Z",
+          "issuerUrl": "https://prestocks.com/spacex",
+          "liveVerifiedAt": "2026-09-24T17:48:32.563Z",
+          "sha256": "3ef40229c0b7958a9bf7eee625cf1cc974ade979a57a766a2f39814579d2d654"
+        },
+        "message": "Issuer deadline ahead: SpaceX PreStocks tokens must be swapped into $SPCXx or any other token before 11:59pm UTC on 12 March 2027, or they will expire worthless.",
+        "status": "DISCLOSE"
+      },
+      {
+        "code": "HIGH_NETWORK_COST",
+        "evidence": {
+          "pctOfOrder": 18.982363734259998,
+          "walletSolCostLamports": 1625906
+        },
+        "message": "This order costs your wallet 0.001626 SOL in network fees and rent; most of it is rent to open your token account for this mint, refundable if you later close that account.",
+        "status": "DISCLOSE"
+      }
+    ],
+    "signAvailable": true,
+    "status": "DISCLOSE"
+  },
+  "createdAt": "2026-09-24T17:49:20.443Z",
+  "expected": {
+    "decimals": 9,
+    "feeBps": 100,
+    "minOutRaw": "1658753",
+    "multiplier": 5,
+    "netOutRaw": "1692606",
+    "walletSolCostLamports": 1625906
+  },
+  "expiresAt": "2026-09-24T17:49:52.363Z",
+  "mark": {
+    "price": 147.96813351130137,
+    "retrievedAt": "2026-09-24T17:49:20.012Z"
+  },
+  "messageBase64": "gAEAAwhcYJq9bY0V/B8yJhv1IOrlkkaRKCIug7/aB3hJrvIIxHh0HUNmwcriHIPOzH4r4iHZHI+8fN4kgh/oWImk8OkcmvRXvqIYZ4WO7D3Q4F6YE0ZyRNmeG8pjHzREh87sGAHQzpw9nIt5mdSF2y0Ins9v1RaRuVaQ/Hpw2xk1vXBf4tjxzR3IUPt6GHpK/tPSsD4FgQJe13d6mXJ5pxdyFdwBAwZGb+UhFzL/7K26csOb57yM5bvF9xJrLEObOkAAAAC140oU4rxzSGkO4fWvXe7WVThAo22quGCwUGBzvcA8EArxw0MhiMo6Y1E1oToYlRrOvSnmrC7tOPkebdGyOzxXwP58/fjbm0vw1mUxYE5fOeEkONCe2InQwTM6cjL8ol8DBQAFAm5qBAAFAAkDNAUAAAAAAAAGLh4XFQAWBhgdHwYUAgQAEwcLGwkIAgMSGgobABwZGwwPGw4RAwEUEhAbABwZGw2FAfjGnpHhdYfIBQAAACVHe/XWeJYO8Ypt05vQF3nLsI3C9vcJF4OkV2eN2EzOogY0lToFLMrTUxmCadPP02x6XTQ4KBM3HM+xjGypwUQGSwDUGgAA0K+TAAAAP+gDAAAAAAAALRlYPg8AAAAAAAEBGXPjtwAAAAAAAQG+0xkAAAAAAMgAAAADAG/HrYqjuyG3uUT8EnIAuMNtF5LbTfxeIwVKYLdpxg4FdnRteHMALMN1DxzYwBNGEulM/03sfOii+h9x/6E3gcLeBnzd8nsGe4F5f4J8AYODiwvkD0VX6xWWbuNNIFF5RGt2oBfC0LWz0JCisnps/AHmCwAKB9tBuRsIAQUG",
+  "mint": "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh",
+  "orderId": "cMcF5AwMNJnF3bTv",
+  "route": {
+    "feeBps": 10,
+    "feeMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "lastValidBlockHeight": "428141355",
+    "requestId": "01a0d489-4231-717b-88e7-546755dcb948",
+    "router": "dflow",
+    "slippageBps": 200
+  },
+  "schema": "preflight.order.v1",
+  "symbol": "SPACEX",
+  "unsignedTx": "AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQADCFxgmr1tjRX8HzImG/Ug6uWSRpEoIi6Dv9oHeEmu8gjEeHQdQ2bByuIcg87MfiviIdkcj7x83iSCH+hYiaTw6Rya9Fe+ohhnhY7sPdDgXpgTRnJE2Z4bymMfNESHzuwYAdDOnD2ci3mZ1IXbLQiez2/VFpG5VpD8enDbGTW9cF/i2PHNHchQ+3oYekr+09KwPgWBAl7Xd3qZcnmnF3IV3AEDBkZv5SEXMv/srbpyw5vnvIzlu8X3EmssQ5s6QAAAALXjShTivHNIaQ7h9a9d7tZVOECjbaq4YLBQYHO9wDwQCvHDQyGIyjpjUTWhOhiVGs69KeasLu04+R5t0bI7PFfA/nz9+NubS/DWZTFgTl854SQ40J7YidDBMzpyMvyiXwMFAAUCbmoEAAUACQM0BQAAAAAAAAYuHhcVABYGGB0fBhQCBAATBwsbCQgCAxIaChsAHBkbDA8bDhEDARQSEBsAHBkbDYUB+MaekeF1h8gFAAAAJUd79dZ4lg7xim3Tm9AXecuwjcL29wkXg6RXZ43YTM6iBjSVOgUsytNTGYJp08/TbHpdNDgoEzccz7GMbKnBRAZLANQaAADQr5MAAAA/6AMAAAAAAAAtGVg+DwAAAAAAAQEZc+O3AAAAAAABAb7TGQAAAAAAyAAAAAMAb8etiqO7Ibe5RPwScgC4w20XkttN/F4jBUpgt2nGDgV2dG14cwAsw3UPHNjAE0YS6Uz/Tex86KL6H3H/oTeBwt4GfN3yewZ7gXl/gnwBg4OLC+QPRVfrFZZu400gUXlEa3agF8LQtbPQkKKyemz8AeYLAAoH20G5GwgBBQY=",
+  "usdcInRaw": "1000000",
+  "verdict": {
+    "checkedAt": "2026-09-24T17:49:20.443Z",
+    "evidence": {
+      "catalogRetrievedAt": "2026-09-24T17:49:20.012Z",
+      "lifecycle": {
+        "capturedAt": "2026-09-23T15:13:27Z",
+        "deadline": "2027-03-12T23:59:00Z",
+        "issuerUrl": "https://prestocks.com/spacex",
+        "sha256": "3ef40229c0b7958a9bf7eee625cf1cc974ade979a57a766a2f39814579d2d654",
+        "statement": "SpaceX PreStocks tokens must be swapped into $SPCXx or any other token before 11:59pm UTC on 12 March 2027, or they will expire worthless.",
+        "symbol": "SPACEX"
+      },
+      "markPrice": 147.96813351130137
+    },
+    "expectedNetOutRaw": "1692606",
+    "guaranteedMinOutRaw": "1658753",
+    "metrics": {
+      "executablePrice": 118.16098962192028,
+      "netOutUi": 0.00846303,
+      "premiumPct": -20.144299439382007,
+      "sizeImpactPct": 0,
+      "walletSolCostLamports": 1625906,
+      "worstPremiumPct": -18.514548035117105,
+      "worstPrice": 120.57250235568527
+    },
+    "mint": "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh",
+    "notEvaluated": [],
+    "orderId": "cMcF5AwMNJnF3bTv",
+    "reasons": [
+      {
+        "code": "ISSUER_DEADLINE",
+        "evidence": {
+          "capturedAt": "2026-09-23T15:13:27Z",
+          "deadline": "2027-03-12T23:59:00Z",
+          "issuerUrl": "https://prestocks.com/spacex",
+          "liveVerifiedAt": "2026-09-24T17:48:32.563Z",
+          "sha256": "3ef40229c0b7958a9bf7eee625cf1cc974ade979a57a766a2f39814579d2d654"
+        },
+        "message": "Issuer deadline ahead: SpaceX PreStocks tokens must be swapped into $SPCXx or any other token before 11:59pm UTC on 12 March 2027, or they will expire worthless.",
+        "status": "DISCLOSE"
+      },
+      {
+        "code": "HIGH_NETWORK_COST",
+        "evidence": {
+          "pctOfOrder": 18.982363734259998,
+          "walletSolCostLamports": 1625906
+        },
+        "message": "This order costs your wallet 0.001626 SOL in network fees and rent; most of it is rent to open your token account for this mint, refundable if you later close that account.",
+        "status": "DISCLOSE"
+      }
+    ],
+    "route": {
+      "requestId": "01a0d489-4231-717b-88e7-546755dcb948",
+      "router": "dflow"
+    },
+    "schema": "preflight.verdict.v1",
+    "status": "DISCLOSE",
+    "usdcInRaw": "1000000",
+    "wallet": "7DbwrCzZqk34xLqK3aZ2xBfM9awdB3izELt9vCSsu1H5"
+  },
+  "verdictHash": "4f0f39d231d29f57ba7627467b3dfe9de9e87b20f84a5b5f25d72d5334992fcc",
+  "wallet": "7DbwrCzZqk34xLqK3aZ2xBfM9awdB3izELt9vCSsu1H5"
+}

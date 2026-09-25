@@ -1,0 +1,124 @@
+{
+    "appRecorded": {
+        "ackedReasons": [
+            "HIGH_NETWORK_COST",
+            "ISSUER_DEADLINE"
+        ],
+        "checkedAt": "2026-09-24T17:49:20.443Z",
+        "executeReported": {
+            "code": 0,
+            "inputAmountResult": "999000",
+            "outputAmountResult": "1692606",
+            "status": "Success",
+            "totalInputAmount": "1000000",
+            "totalOutputAmount": "1692606"
+        },
+        "expectedNetOutRaw": "1692606",
+        "expectedSolCostLamports": 1625906,
+        "orderId": "cMcF5AwMNJnF3bTv",
+        "reasons": [
+            {
+                "code": "ISSUER_DEADLINE",
+                "message": "Issuer deadline ahead: SpaceX PreStocks tokens must be swapped into $SPCXx or any other token before 11:59pm UTC on 12 March 2027, or they will expire worthless.",
+                "status": "DISCLOSE"
+            },
+            {
+                "code": "HIGH_NETWORK_COST",
+                "message": "This order costs your wallet 0.001626 SOL in network fees and rent; most of it is rent to open your token account for this mint, refundable if you later close that account.",
+                "status": "DISCLOSE"
+            }
+        ],
+        "router": "dflow",
+        "status": "DISCLOSE",
+        "verdict": {
+            "checkedAt": "2026-09-24T17:49:20.443Z",
+            "evidence": {
+                "catalogRetrievedAt": "2026-09-24T17:49:20.012Z",
+                "lifecycle": {
+                    "capturedAt": "2026-09-23T15:13:27Z",
+                    "deadline": "2027-03-12T23:59:00Z",
+                    "issuerUrl": "https://prestocks.com/spacex",
+                    "sha256": "3ef40229c0b7958a9bf7eee625cf1cc974ade979a57a766a2f39814579d2d654",
+                    "statement": "SpaceX PreStocks tokens must be swapped into $SPCXx or any other token before 11:59pm UTC on 12 March 2027, or they will expire worthless.",
+                    "symbol": "SPACEX"
+                },
+                "markPrice": 147.96813351130137
+            },
+            "expectedNetOutRaw": "1692606",
+            "guaranteedMinOutRaw": "1658753",
+            "metrics": {
+                "executablePrice": 118.16098962192028,
+                "netOutUi": 0.00846303,
+                "premiumPct": -20.144299439382007,
+                "sizeImpactPct": 0,
+                "walletSolCostLamports": 1625906,
+                "worstPremiumPct": -18.514548035117105,
+                "worstPrice": 120.57250235568527
+            },
+            "mint": "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh",
+            "notEvaluated": [],
+            "orderId": "cMcF5AwMNJnF3bTv",
+            "reasons": [
+                {
+                    "code": "ISSUER_DEADLINE",
+                    "evidence": {
+                        "capturedAt": "2026-09-23T15:13:27Z",
+                        "deadline": "2027-03-12T23:59:00Z",
+                        "issuerUrl": "https://prestocks.com/spacex",
+                        "liveVerifiedAt": "2026-09-24T17:48:32.563Z",
+                        "sha256": "3ef40229c0b7958a9bf7eee625cf1cc974ade979a57a766a2f39814579d2d654"
+                    },
+                    "message": "Issuer deadline ahead: SpaceX PreStocks tokens must be swapped into $SPCXx or any other token before 11:59pm UTC on 12 March 2027, or they will expire worthless.",
+                    "status": "DISCLOSE"
+                },
+                {
+                    "code": "HIGH_NETWORK_COST",
+                    "evidence": {
+                        "pctOfOrder": 18.982363734259998,
+                        "walletSolCostLamports": 1625906
+                    },
+                    "message": "This order costs your wallet 0.001626 SOL in network fees and rent; most of it is rent to open your token account for this mint, refundable if you later close that account.",
+                    "status": "DISCLOSE"
+                }
+            ],
+            "route": {
+                "requestId": "01a0d489-4231-717b-88e7-546755dcb948",
+                "router": "dflow"
+            },
+            "schema": "preflight.verdict.v1",
+            "status": "DISCLOSE",
+            "usdcInRaw": "1000000",
+            "wallet": "7DbwrCzZqk34xLqK3aZ2xBfM9awdB3izELt9vCSsu1H5"
+        },
+        "verdictHash": "4f0f39d231d29f57ba7627467b3dfe9de9e87b20f84a5b5f25d72d5334992fcc"
+    },
+    "chainVerified": {
+        "blockTime": "2026-09-24T17:49:32.000Z",
+        "feePayer": "7DbwrCzZqk34xLqK3aZ2xBfM9awdB3izELt9vCSsu1H5",
+        "found": true,
+        "networkFeeLamports": 5386,
+        "slot": 450101221,
+        "success": true,
+        "tokenCreditedRaw": "1692606",
+        "usdcDebitedRaw": "1000000",
+        "walletSolSpentLamports": 1625906
+    },
+    "decimals": 9,
+    "issuerAttested": {
+        "catalogRetrievedAt": "2026-09-24T17:49:20.012Z",
+        "lifecycle": {
+            "capturedAt": "2026-09-23T15:13:27Z",
+            "deadline": "2027-03-12T23:59:00Z",
+            "issuerUrl": "https://prestocks.com/spacex",
+            "sha256": "3ef40229c0b7958a9bf7eee625cf1cc974ade979a57a766a2f39814579d2d654",
+            "statement": "SpaceX PreStocks tokens must be swapped into $SPCXx or any other token before 11:59pm UTC on 12 March 2027, or they will expire worthless.",
+            "symbol": "SPACEX"
+        },
+        "markPrice": 147.96813351130137
+    },
+    "mint": "PreANxuXjsy2pvisWWMNB6YaJNzr7681wJJr2rHsfTh",
+    "multiplier": 5,
+    "signature": "3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT",
+    "symbol": "SPACEX",
+    "wallet": "7DbwrCzZqk34xLqK3aZ2xBfM9awdB3izELt9vCSsu1H5"
+}

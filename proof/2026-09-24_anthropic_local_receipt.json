@@ -1,0 +1,88 @@
+{
+    "appRecorded": {
+        "ackedReasons": null,
+        "checkedAt": "2026-09-24T02:52:55.214Z",
+        "executeReported": {
+            "code": 0,
+            "inputAmountResult": "1998000",
+            "outputAmountResult": "1897345",
+            "status": "Success",
+            "totalInputAmount": "2000000",
+            "totalOutputAmount": "1897345"
+        },
+        "expectedNetOutRaw": "1899039",
+        "expectedSolCostLamports": 1522285,
+        "orderId": "sYeIr8Ex3aF3Cyn6",
+        "reasons": [
+            {
+                "code": "HIGH_NETWORK_COST",
+                "message": "This order costs your wallet 0.001522 SOL in network fees and rent; this route creates temporary accounts.",
+                "status": "DISCLOSE"
+            }
+        ],
+        "router": "metis",
+        "status": "DISCLOSE",
+        "verdict": {
+            "checkedAt": "2026-09-24T02:52:55.214Z",
+            "evidence": {
+                "catalogRetrievedAt": "2026-09-24T02:52:34.303Z",
+                "lifecycle": null,
+                "markPrice": 1038.60784046
+            },
+            "expectedNetOutRaw": "1899039",
+            "guaranteedMinOutRaw": "1861059",
+            "metrics": {
+                "executablePrice": 1053.164258343299,
+                "netOutUi": 0.001899039,
+                "premiumPct": 1.401531676946699,
+                "sizeImpactPct": -0.005160768470036103,
+                "walletSolCostLamports": 1522285
+            },
+            "mint": "Pren1FvFX6J3E4kXhJuCiAD5aDmGEb7qJRncwA8Lkhw",
+            "notEvaluated": [],
+            "orderId": "sYeIr8Ex3aF3Cyn6",
+            "reasons": [
+                {
+                    "code": "HIGH_NETWORK_COST",
+                    "evidence": {
+                        "pctOfOrder": 8.769733923140413,
+                        "walletSolCostLamports": 1522285
+                    },
+                    "message": "This order costs your wallet 0.001522 SOL in network fees and rent; this route creates temporary accounts.",
+                    "status": "DISCLOSE"
+                }
+            ],
+            "route": {
+                "requestId": "01a0d154-8d1b-71fc-b395-84ee7ef2a74c",
+                "router": "metis"
+            },
+            "schema": "preflight.verdict.v1",
+            "status": "DISCLOSE",
+            "usdcInRaw": "2000000",
+            "wallet": "7DbwrCzZqk34xLqK3aZ2xBfM9awdB3izELt9vCSsu1H5"
+        },
+        "verdictHash": "f289360d799f110c6dd9f9f778dc84dfb4bd8133b5e3d5b45f008e82d08a4c7a"
+    },
+    "chainVerified": {
+        "blockTime": "2026-09-24T02:53:13.000Z",
+        "feePayer": "7DbwrCzZqk34xLqK3aZ2xBfM9awdB3izELt9vCSsu1H5",
+        "found": true,
+        "networkFeeLamports": 33845,
+        "slot": 449898611,
+        "success": true,
+        "tokenCreditedRaw": "1897345",
+        "usdcDebitedRaw": "2000000",
+        "walletSolSpentLamports": 1522285
+    },
+    "decimals": 9,
+    "issuerAttested": {
+        "catalogRetrievedAt": "2026-09-24T02:52:34.303Z",
+        "lifecycle": null,
+        "markPrice": 1038.60784046
+    },
+    "mint": "Pren1FvFX6J3E4kXhJuCiAD5aDmGEb7qJRncwA8Lkhw",
+    "multiplier": 1,
+    "signature": "5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV",
+    "symbol": "ANTHROPIC",
+    "wallet": "7DbwrCzZqk34xLqK3aZ2xBfM9awdB3izELt9vCSsu1H5"
+}

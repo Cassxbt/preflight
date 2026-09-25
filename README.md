@@ -41,14 +41,14 @@ Then OPENAI. PreStocks publishes its own mark for every token. At the time of wr
 
 These tokens also carry things a normal SPL swap never meets. They are Token-2022 mints with a 1% transfer fee, a display multiplier (OPENAI's on-chain amount is multiplied by about 1.486 for display, so one OPENAI on screen is about 0.673 raw tokens) and a pause switch. The issuer publishes conversion deadlines on web pages, not on chain.
 
-Every fact Preflight needs is public, but it is spread across four places: the PreStocks catalog, the issuer's web pages, the mint account and the Jupiter route. Preflight reads all four in the moment before you sign. It will not hand you a transaction to sign while any of them says stop.
+Every fact Preflight needs is public, but it is spread across four places: the PreStocks catalog, the issuer's web pages, the mint account and the Jupiter route. Preflight reads all four when you check a token and again when you prepare an order, from short caches (30 seconds for the catalog, 5 minutes for issuer pages). It will not hand you a transaction while the catalog, the mint, the route or a reviewed issuer deadline says stop. For tokens without a reviewed deadline, the issuer-page scan is advisory: a new notice is disclosed, and an unreadable page is reported as not checked rather than blocking the buy.
 
 The same checks are what make buying the current catalog trustworthy. You get the exact mint PreStocks lists, the issuer's mark next to your real fill, and any deadline the issuer has published, all before you sign. Then a receipt shows what you actually paid.
 
 ## How it works
 
 1. **Check.** Pick a token. Preflight reads the PreStocks catalog, the mint's Token-2022 state and, for tokens with a published deadline, the issuer's page. Then it returns `CLEAR`, `DISCLOSE` or `HOLD`, with a reason for each finding.
-2. **Quote and simulate.** When you connect a wallet and enter an amount, Preflight takes a Jupiter Swap V2 order and simulates it against your wallet. The simulation must debit exactly what you asked for and credit tokens. Preflight prices both the expected fill and the worst fill the transaction allows.
+2. **Quote and simulate.** When you connect a wallet and enter an amount, Preflight takes a Jupiter Swap V2 order and simulates it against your wallet, watching your SOL, your USDC account and your token account. The simulation must debit exactly the USDC you asked for and credit tokens. Preflight prices both the expected fill and the minimum Jupiter reports for the route.
 3. **Acknowledge.** A `DISCLOSE` finding has to be acknowledged, one toggle per reason, before signing. A `HOLD` never produces a transaction to sign.
 4. **Sign.** Preflight derives the signature before it broadcasts and takes a lock on the order, so a retry cannot buy twice. It records the verdict, then sends the transaction through Jupiter.
 5. **Receipt.** Every purchase gets a page at `/r/<signature>`. What the chain proves, what Preflight recorded and what the issuer published are shown as separate groups.
@@ -75,6 +75,8 @@ Jupiter's public quote API will still route a buy into the same mint:
 curl -s "https://lite-api.jup.ag/swap/v1/quote?inputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&outputMint=PreC1KtJ1sBPPqaeeqL6Qb15GTLCYVvyYEwxhdfTwfx&amount=1000000"
 # a route through Meteora DLMM, as of 24 Sep 2026
 ```
+
+A timestamped response is archived in [`proof/2026-09-25_xai_jupiter_quote.json`](proof/2026-09-25_xai_jupiter_quote.json), in case the route has changed by the time you run it.
 
 **A token listed far above the issuer's mark is disclosed.**
 
@@ -129,13 +131,15 @@ This purchase was made on 24 September 2026 through the deployed app at prefligh
 | Transaction | [`3mgVKNBX…HvVSDprT`](https://solscan.io/tx/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT), slot 450,101,221, finalized |
 | Order | 1 USDC into SPACEX through Jupiter (DFlow route) |
 | Verdict at signing | `DISCLOSE` · `ISSUER_DEADLINE` (the issuer's 12 March 2027 conversion deadline) and `HIGH_NETWORK_COST` |
-| Acknowledged | Both reasons, recorded on the receipt before broadcast |
-| Credited on chain | 0.00846303 SPACEX, exactly the expected amount and above the guaranteed minimum of 0.00829377 |
+| Acknowledged | Both reasons, toggled in the app, required by the server and recorded before broadcast (client-reported, not signed by the wallet) |
+| Credited on chain | 0.00846303 SPACEX, exactly the expected amount and above the 0.00829377 minimum Jupiter reported for the route |
 | Price paid | $118.16 per token, 20.1% below the issuer mark of $147.97 |
 | Wallet SOL spent | 0.001626 SOL: 0.000005 network fee, and 0.001621 SOL rent for the wallet's new SPACEX token account, which comes back if that account is closed |
 | Receipt | [preflight-weld.vercel.app/r/3mgVKNBX…HvVSDprT](https://preflight-weld.vercel.app/r/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT) |
 
-The first signature on this order reached the server about four seconds before the route expired. The server refused it as too close to land and sent nothing. The second signature, inside the remaining window, is the one above.
+Before this, an order prepared under a minute earlier expired while the wallet was still asking for approval. Its signature reached the server with about four seconds left on the app's countdown, inside the 12-block safety margin, so the server refused it as too close to land and nothing was sent. A newly prepared order was then signed, and that is the transaction above.
+
+To check it on the explorer, read the balance changes: 1 USDC out of the wallet and 0.00846303 SPACEX in. 1 ÷ 0.00846303 = $118.16 per token. Solscan's own dollar estimate for the SPACEX leg does not match these amounts, so use the raw balance changes rather than that figure. The receipt JSON and the prepared order are archived in [`proof/`](proof).
 
 **Earlier purchase.** The first mainnet buy, [`5XcWu1fa…jwPqwXPV`](https://preflight-weld.vercel.app/r/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV), was 2 USDC into ANTHROPIC through Preflight running locally, before the Vercel deploy. Its receipt record was copied into production storage, and it predates acknowledgement logging. One attempt before it expired because its signing window came from a fixed timer rather than the chain. That failure led to the chain-derived signing window described under [Engineering decisions](#engineering-decisions).
 
@@ -169,7 +173,7 @@ A check that could not run is listed under `notEvaluated`. It never counts as a 
 | PreStocks catalog API | Listing, issuer mark, listed price, valuations | [`src/lib/catalog.ts`](src/lib/catalog.ts) `fetchCatalog` |
 | PreStocks issuer pages | Conversion deadlines and terms, read from visible text and anchor links only | [`src/lib/issuer.ts`](src/lib/issuer.ts) `verifyIssuerEvidence` |
 | Token-2022 mint accounts | Pause state, transfer fee, scaled-UI multiplier schedule | [`src/lib/mintState.ts`](src/lib/mintState.ts) `readMintState` |
-| Jupiter Swap V2 `/order` | The route, expected output, guaranteed minimum, router | [`src/lib/jupiter.ts`](src/lib/jupiter.ts) `metaOrder` |
+| Jupiter Swap V2 `/order` | The route, expected output, the route's reported minimum, router | [`src/lib/jupiter.ts`](src/lib/jupiter.ts) `metaOrder` |
 | Jupiter Swap V2 `/execute` | Broadcast of the signed transaction | [`src/lib/jupiter.ts`](src/lib/jupiter.ts) `metaExecute` |
 | Solana RPC simulation | Exact USDC debit and token credit for your wallet | [`src/lib/solana.ts`](src/lib/solana.ts) `simulate` |
 | GeckoTerminal | Live prices, pool flow and charts in the UI. The verdict never uses it. | [`src/lib/market.ts`](src/lib/market.ts) |
@@ -201,10 +205,10 @@ flowchart LR
 
 ## Engineering decisions
 
-- **The worst fill is priced, not only the expected one.** The transaction guarantees only its minimum output, so `ABOVE_MARK` is checked against both prices.
+- **The worst fill is priced, not only the expected one.** A swap can fill anywhere down to the minimum Jupiter reports for the route, so `ABOVE_MARK` is checked against both prices.
 - **The signing window comes from the chain.** The order expires 12 blocks before the transaction's `lastValidBlockHeight`, and `/api/submit` checks the block height again before broadcasting. The first mainnet attempt expired on a fixed timer. This reduces that risk but cannot remove it, because blocks keep arriving between the last check and Jupiter's broadcast.
 - **The signature is recorded before broadcast.** Preflight takes the signature from the signed bytes, checks that the fee payer at index 0 signed the exact message it issued, takes an atomic lock and writes the receipt record before calling Jupiter. A lost response can show "outcome unknown", but a retry can't send the same order again.
-- **The simulation has to debit what you asked.** A route counts only if the simulation debits exactly the requested USDC and credits more than zero tokens. The minimum output is enforced on chain by Jupiter's program, and Preflight prices it as the worst case. When the first route costs too much in fees and rent, Preflight re-quotes up to three times and keeps the cheapest one that passes.
+- **The simulation has to debit what you asked.** A route counts only if the simulation debits exactly the requested USDC and credits more than zero tokens. Preflight takes Jupiter's reported minimum (`otherAmountThreshold`) as the worst case. It has not independently decoded how every third-party router, such as DFlow, enforces that floor on chain. When the first route costs too much in fees and rent, Preflight re-quotes up to three times and keeps the cheapest one that passes.
 - **Slippage has a floor above the transfer fee.** In our measurement, a 1% Token-2022 fee under 1% slippage failed 2 of 3 simulations. The floor is the fee plus 100 bps.
 - **Prices are scaled per unit.** On-chain prices are per raw unit, and display prices are per scaled unit. Every comparison uses the multiplier active at that moment.
 - **Issuer evidence has to be visible.** A mint only counts if it appears in an anchor link. A statement only counts if it survives the removal of comments, scripts, styles, templates and elements with the `hidden` attribute. This is a regex pass, not a DOM. Markup nested inside a `hidden` element, and text a stylesheet hides, can still count.
@@ -214,7 +218,7 @@ flowchart LR
 | Claim | Status |
 |---|---|
 | Holds buys the issuer's published terms rule out | **Real, for tokens in the registry.** [`src/data/lifecycle.json`](src/data/lifecycle.json) records the issuer's published deadlines, currently XAI and SPACEX. Each check re-reads the live page (cached up to 5 minutes) and verifies the capture hash. Every other listed token has its PreStocks page read for new lifecycle notices, and one that is not in the registry is disclosed as `ISSUER_NOTICE` in the issuer's words until it is reviewed. On 24 September all nine token pages were checked, and only XAI and SPACEX carried a notice. |
-| Prices your fill against the issuer mark | **Real.** The expected fill comes from Jupiter's quote and the worst case from its guaranteed minimum. The simulation confirms the exact USDC debit. |
+| Prices your fill against the issuer mark | **Real.** The expected fill comes from Jupiter's quote and the worst case from the minimum Jupiter reports for the route. The simulation confirms the exact USDC debit and a positive token credit. |
 | One order cannot execute twice | **Real.** Atomic lock (Redis `SET NX` in production). Tested with parallel submissions against the file store. |
 | Verdict stored on chain | **No.** Preflight submits Jupiter's prepared message unchanged, and its exact-message check rejects any addition, so there is no memo. The verdict is stored by Preflight. Its hash detects edits if you saved the JSON, but it is not anchored on chain. |
 | Mark freshness | **Partial.** PreStocks does not timestamp its mark. Preflight records when it read the catalog. |
