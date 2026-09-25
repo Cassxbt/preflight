@@ -298,7 +298,7 @@ export default async function Landing() {
               <Heading
                 eyebrow="Proof"
                 title="A real purchase on mainnet, checked first."
-                lead="1 USDC into SPACEX through this app on 24 September 2026, after acknowledging the issuer's own deadline. The receipt reads the chain live and publishes the verdict it was signed against."
+                lead="1 USDC into SPACEX through this app on 24 September 2026, after acknowledging the issuer's own deadline. The receipt reads the on-chain balance changes and publishes the verdict it was signed against."
               />
               <Reveal className="flex flex-wrap gap-3">
                 <Cta href={`/r/${RECEIPT}`}>Open the receipt</Cta>

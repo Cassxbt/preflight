@@ -176,7 +176,7 @@ export function DeadlineTimeline({ now }: { now: string }) {
 }
 
 const LAYERS = [
-  { name: "PreStocks", part: "catalog API · issuer pages", file: "catalog.ts · issuer.ts", without: "Copies, paused mints and closed windows pass as the real token." },
+  { name: "PreStocks", part: "catalog API · issuer pages", file: "catalog.ts · issuer.ts", without: "Lookalike mints pass as the real token, and a closed conversion window goes unseen." },
   { name: "Token-2022", part: "fee · multiplier · pause", file: "mintState.ts", without: "The per-token price is wrong and a paused mint slips through." },
   { name: "Jupiter Swap V2", part: "order · execute", file: "jupiter.ts", without: "There is no route to price, simulate or buy." },
   { name: "Solana", part: "simulation · signatures", file: "gather.ts · submit.ts", without: "Expected amounts are guesses and the receipt has no anchor." },

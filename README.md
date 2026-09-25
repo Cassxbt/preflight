@@ -43,7 +43,7 @@ These tokens also carry things a normal SPL swap never meets. They are Token-202
 
 Every fact Preflight needs is public, but it is spread across four places: the PreStocks catalog, the issuer's web pages, the mint account and the Jupiter route. Preflight reads all four when you check a token and again when you prepare an order, from short caches (30 seconds for the catalog, 5 minutes for issuer pages). It will not hand you a transaction while the catalog, the mint, the route or a reviewed issuer deadline says stop. For tokens without a reviewed deadline, the issuer-page scan is advisory: a new notice is disclosed, and an unreadable page is reported as not checked rather than blocking the buy.
 
-The same checks are what make buying the current catalog trustworthy. You get the exact mint PreStocks lists, the issuer's mark next to your real fill, and any deadline the issuer has published, all before you sign. Then a receipt shows what you actually paid.
+The same checks are what make buying the current catalog trustworthy. You get the exact mint PreStocks lists, the issuer's mark next to your real fill, and the issuer's reviewed deadline where one exists, all before you sign. Then a receipt shows what you actually paid.
 
 ## How it works
 
@@ -139,7 +139,7 @@ This purchase was made on 24 September 2026 through the deployed app at prefligh
 
 Before this, an order prepared under a minute earlier expired while the wallet was still asking for approval. Its signature reached the server with about four seconds left on the app's countdown, inside the 12-block safety margin, so the server refused it as too close to land and nothing was sent. A newly prepared order was then signed, and that is the transaction above.
 
-To check it on the explorer, read the balance changes: 1 USDC out of the wallet and 0.00846303 SPACEX in. 1 ÷ 0.00846303 = $118.16 per token. Solscan's own dollar estimate for the SPACEX leg does not match these amounts, so use the raw balance changes rather than that figure. The receipt JSON and the prepared order are archived in [`proof/`](proof).
+To check it on the explorer, read the balance changes: 1 USDC out of the wallet and 0.00846303 SPACEX in. 1 ÷ 0.00846303 = $118.16 per token. Work the price out from these raw balance changes rather than from an explorer's dollar label. The route passed through an XAI pool as an intermediate hop inside the same transaction; the wallet never held XAI. The receipt JSON and the prepared order are archived in [`proof/`](proof).
 
 **Earlier purchase.** The first mainnet buy, [`5XcWu1fa…jwPqwXPV`](https://preflight-weld.vercel.app/r/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV), was 2 USDC into ANTHROPIC through Preflight running locally, before the Vercel deploy. Its receipt record was copied into production storage, and it predates acknowledgement logging. One attempt before it expired because its signing window came from a fixed timer rather than the chain. That failure led to the chain-derived signing window described under [Engineering decisions](#engineering-decisions).
 
