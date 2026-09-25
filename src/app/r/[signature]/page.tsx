@@ -87,7 +87,7 @@ export default async function ReceiptPage(props: PageProps<"/r/[signature]">) {
   const appRows: [string, React.ReactNode][] = [
     ["Verdict", <StatusLight key="v" status={app.status} />],
     ["Reasons", app.reasons.length ? app.reasons.map((r) => r.code).join(", ") : "none"],
-    ["Acknowledged", app.ackedReasons === null ? "Not recorded for this early receipt" : app.ackedReasons.length ? app.ackedReasons.join(", ") : "nothing to acknowledge"],
+    ["Acknowledged in the app", app.ackedReasons === null ? "Not recorded for this early receipt" : app.ackedReasons.length ? app.ackedReasons.join(", ") : "nothing to acknowledge"],
     ["Checked", fmtDate(app.checkedAt, true)],
     ["Expected credit", tokens(app.expectedNetOutRaw)],
     ["Actual vs expected", gap === null ? "—" : `${gap >= 0 ? "+" : "−"}${Math.abs(gap).toFixed(2)}%`],
@@ -148,8 +148,8 @@ export default async function ReceiptPage(props: PageProps<"/r/[signature]">) {
         </div>
 
         <p className="max-w-3xl text-xs leading-relaxed text-muted">
-          The verdict SHA-256 is computed over the verdict object in the receipt JSON, serialized with sorted keys. It lets you detect later edits if you saved the
-          JSON at signing time; it is not anchored on chain.
+          The verdict SHA-256 is computed over the verdict object in the receipt JSON, serialized with sorted keys. The app shows its first digits under Sign and
+          buy before you sign, so a noted hash lets you detect later edits. It is published by Preflight and not anchored on chain.
         </p>
       </main>
       <SiteFooter />

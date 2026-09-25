@@ -333,7 +333,7 @@ export default async function Landing() {
                   tone: "text-disclose",
                   items: [
                     "Decide your eligibility. PreStocks says its tokens are not available to U.S. persons.",
-                    "Anchor the verdict on chain. Jupiter's aggregator transaction cannot be modified to add a memo, so the verdict record is stored by Preflight.",
+                    "Anchor the verdict on chain. Preflight submits Jupiter's prepared transaction unchanged and rejects any edit to it, so the verdict record is stored by Preflight, not in the transaction.",
                     "Know when the issuer last updated its mark. It shows when the mark was read.",
                     "Protect trades made elsewhere. Orders are capped at 5 USDC while this is a hackathon build.",
                   ],
