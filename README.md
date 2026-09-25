@@ -37,7 +37,7 @@ A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits betwee
 
 I started with the XAI token. The PreStocks page says each XAI token had to be swapped into SpaceX before 23:59 UTC on 12 September 2026, or it would **expire worthless**. That window has closed, but the token still trades. On 24 September, twelve days after the deadline, Jupiter still routed USDC into XAI through Meteora pools holding over $280,000, and the XAI/USDC pool had recorded a buy in the previous 24 hours. Nothing in the mint account or a swap quote carries that deadline. It lives on a web page.
 
-Then OPENAI. PreStocks publishes its own mark for every token. At the time of writing, its catalog lists OPENAI **32.8% above that mark**. A swap UI shows the price you will pay. It does not show the issuer's reference price next to it.
+Then OPENAI. PreStocks publishes its own mark for every token. On 24 September its catalog listed OPENAI **32.8% above that mark**. A swap UI shows the price you will pay. It does not show the issuer's reference price next to it.
 
 These tokens also carry things a normal SPL swap never meets. They are Token-2022 mints with a 1% transfer fee, a display multiplier (OPENAI's on-chain amount is multiplied by about 1.486 for display, so one OPENAI on screen is about 0.673 raw tokens) and a pause switch. The issuer publishes conversion deadlines on web pages, not on chain.
 
@@ -73,7 +73,7 @@ Jupiter's public quote API will still route a buy into the same mint:
 
 ```bash
 curl -s "https://lite-api.jup.ag/swap/v1/quote?inputMint=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&outputMint=PreC1KtJ1sBPPqaeeqL6Qb15GTLCYVvyYEwxhdfTwfx&amount=1000000"
-# a route through Meteora DLMM, as of 24 Sep 2026
+# a route through Meteora DLMM, archived 25 Sep 2026, 00:09 UTC
 ```
 
 A timestamped response is archived in [`proof/2026-09-25_xai_jupiter_quote.json`](proof/2026-09-25_xai_jupiter_quote.json), in case the route has changed by the time you run it.
@@ -89,7 +89,7 @@ status: DISCLOSE
 ABOVE_MARK  PreStocks lists this token at $1,358.20, 32.8% above its own mark of $1,023.12 (policy threshold 5%).
 ```
 
-These are live figures, so the numbers move with the market. A preview without a wallet lists the route, simulation and account checks it could not run yet under `notEvaluated`, and does not report them as passed. The USDC balance check needs a wallet, so it runs only when you prepare an order.
+These figures are from 24 September. The check reads live prices, so they move with the market. A preview without a wallet lists the route, simulation and account checks it could not run yet under `notEvaluated`, and does not report them as passed. The USDC balance check needs a wallet, so it runs only when you prepare an order.
 
 **A token that borrows the OPENAI ticker is held.** Jupiter lists a tradable token whose symbol is exactly `OPENAI`, and PreStocks did not issue it. Preflight accepts only the exact mint in the PreStocks catalog, so a matching ticker is not enough.
 
