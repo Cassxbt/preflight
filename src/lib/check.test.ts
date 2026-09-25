@@ -338,6 +338,11 @@ describe("thresholds", () => {
     expect(at(25_001)).toContain("HIGH_NETWORK_COST");
   });
 
+  it.each([Number.NaN, 0, -150, Number.POSITIVE_INFINITY])("treats a SOL price of %s as unpriced and discloses the cost", (solUsd) => {
+    const r = runCheck(final({ simulation: ok({ succeeded: true, creditRaw: 1n, walletSolCostLamports: 5_000 }), policy: { maxSolCostLamports: 50_000, maxSolCostPctOfOrder: 0.5, solUsd } }));
+    expect(r.reasons.find((x) => x.code === "HIGH_NETWORK_COST")?.message).toContain("could not be priced");
+  });
+
   it("marks HIGH_NETWORK_COST not evaluated when no cost policy was supplied", () => {
     expect(runCheck(final({ policy: undefined })).notEvaluated).toContain("HIGH_NETWORK_COST");
   });

@@ -34,8 +34,9 @@ async function solUsd(): Promise<number | null> {
       cache: "no-store",
       signal: AbortSignal.timeout(5000),
     });
-    const body = (await res.json()) as Record<string, { usdPrice?: number }>;
-    return body[SOL_MINT]?.usdPrice ?? null;
+    const body = (await res.json()) as Record<string, { usdPrice?: unknown }>;
+    const price = body[SOL_MINT]?.usdPrice;
+    return typeof price === "number" && Number.isFinite(price) && price > 0 ? price : null;
   } catch {
     return null;
   }

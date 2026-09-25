@@ -248,7 +248,7 @@ export function runCheck(input: CheckInput): CheckResult {
       if (q.sizeImpactPct > THIN_ROUTE_THRESHOLD_PCT) {
         disclose(
           "THIN_ROUTE",
-          `At this size you get ${q.sizeImpactPct.toFixed(2)}% fewer tokens per dollar than a $1 order on the same market (policy threshold ${THIN_ROUTE_THRESHOLD_PCT}%).`,
+          `At this size you get ${q.sizeImpactPct.toFixed(2)}% fewer tokens per dollar than a $1 order on the same router (policy threshold ${THIN_ROUTE_THRESHOLD_PCT}%).`,
         );
       }
     }
@@ -307,7 +307,8 @@ export function runCheck(input: CheckInput): CheckResult {
     const cost = input.simulation.value.walletSolCostLamports;
     metrics.walletSolCostLamports = cost;
     const orderUsd = input.quote?.ok ? Number(input.quote.value.usdcInRaw) / 1e6 : null;
-    const costUsd = input.policy.solUsd !== null ? (cost / 1e9) * input.policy.solUsd : null;
+    const solUsd = input.policy.solUsd;
+    const costUsd = solUsd !== null && Number.isFinite(solUsd) && solUsd > 0 ? (cost / 1e9) * solUsd : null;
     const pctOfOrder = costUsd !== null && orderUsd ? (costUsd / orderUsd) * 100 : null;
     // Without a dollar price the percentage policy cannot be checked, so the cost is disclosed rather than passed.
     const unpriced = pctOfOrder === null;
