@@ -6,7 +6,7 @@
 
 A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits between the Jupiter quote and your signature, and holds the buy when the PreStocks catalog, the issuer's published terms or the mint itself say stop.
 
-[![tests](https://img.shields.io/badge/tests-133%20passing-3fb950)](#tests)
+[![tests](https://img.shields.io/badge/tests-138%20passing-3fb950)](#tests)
 [![PreStocks](https://img.shields.io/badge/PreStocks-catalog%20%2B%20issuer%20pages-111)](https://prestocks.com)
 [![Jupiter](https://img.shields.io/badge/Jupiter-Swap%20V2%20Meta-111)](https://dev.jup.ag)
 [![Solana](https://img.shields.io/badge/Solana-mainnet-9945FF)](https://solscan.io/tx/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT)
@@ -249,7 +249,7 @@ Put these in `.env.local`:
 npm test
 ```
 
-133 tests in 9 files cover:
+138 tests in 9 files cover:
 
 - every reason path, with boundary tests for the three numeric policies
 - the worst-case price policy
@@ -258,6 +258,7 @@ npm test
 - partial catalog failures
 - the slippage floor and same-router size impact
 - submit races, lost responses, expiry and message tampering, and that Jupiter receives exactly the verified bytes
+- a failed receipt write sending nothing and leaving the order retryable
 - order input errors kept apart from internal failures
 - reading whole lifecycle banners from issuer pages, and disclosing any that differ from the reviewed capture, including an amendment to a reviewed banner
 - recomputing the verdict hash from stored JSON
