@@ -36,19 +36,15 @@ A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits betwee
 
 ## The problem
 
-I started with the XAI token. The PreStocks page says each XAI token had to be swapped into SpaceX before 23:59 UTC on 12 September 2026, or it would **expire worthless**. That window has closed, but the token still trades. On 24 September, twelve days after the deadline, Jupiter still routed USDC into XAI through Meteora pools holding over $280,000, and the XAI/USDC pool had recorded a buy in the previous 24 hours. Nothing in the mint account or a swap quote carries that deadline. It lives on a web page.
+PreStocks told every XAI holder to swap into SpaceX before 23:59 UTC on 12 September 2026, or the token would **expire worthless**. Twelve days later, Jupiter still routed USDC into XAI through Meteora pools holding over $280,000. Nothing in the mint account or the swap quote carries that deadline. It lives on the issuer's web page.
 
-Then OPENAI. PreStocks publishes its own mark for every token. On 24 September its catalog listed OPENAI **32.8% above that mark**. A swap UI shows the price you will pay. It does not show the issuer's reference price next to it.
+It is not the only thing a swap UI leaves out. PreStocks tokens are Token-2022 mints with a 1% transfer fee, a display multiplier and a pause switch. The issuer publishes a mark that the listed price can sit far above: OPENAI was 32.8% above it on 24 September. Lookalike mints copy the tickers.
 
-These tokens also carry things a normal SPL swap never meets. They are Token-2022 mints with a 1% transfer fee, a display multiplier (OPENAI's on-chain amount is multiplied by about 1.486 for display, so one OPENAI on screen is about 0.673 raw tokens) and a pause switch. The issuer publishes conversion deadlines on web pages, not on chain.
-
-Every fact Preflight needs is public, but it is spread across four places: the PreStocks catalog, the issuer's web pages, the mint account and the Jupiter route. Preflight reads all four when you check a token and again when you prepare an order, from short caches (30 seconds for the catalog, 5 minutes for issuer pages). It will not hand you a transaction while the catalog, the mint, the route or a reviewed issuer deadline says stop. For tokens without a reviewed deadline, the issuer-page scan is advisory: a new notice is disclosed, and an unreadable page is reported as not checked rather than blocking the buy.
-
-The same checks are what make buying the current catalog trustworthy. You get the exact mint PreStocks lists, the issuer's mark next to your real fill, and the issuer's reviewed deadline where one exists, all before you sign. Then a receipt shows what you actually paid.
+Every one of these facts is public, but they are spread across four places: the PreStocks catalog, the issuer's pages, the mint account and the Jupiter route. Preflight reads all four before you sign, and it will not hand you a transaction while any of them says stop.
 
 ## How it works
 
-1. **Check.** Pick a token. Preflight reads the PreStocks catalog, the mint's Token-2022 state and, for tokens with a published deadline, the issuer's page. Then it returns `CLEAR`, `DISCLOSE` or `HOLD`, with a reason for each finding.
+1. **Check.** Pick a token. Preflight reads the PreStocks catalog (cached 30 seconds), the mint's Token-2022 state and, for tokens with a published deadline, the issuer's page. Then it returns `CLEAR`, `DISCLOSE` or `HOLD`, with a reason for each finding.
 2. **Quote and simulate.** When you connect a wallet and enter an amount, Preflight takes a Jupiter Swap V2 order and simulates it against your wallet, watching your SOL, your USDC account and your token account. The simulation must debit exactly the USDC you asked for and credit tokens. Preflight prices both the expected fill and the minimum Jupiter reports for the route.
 3. **Acknowledge.** A `DISCLOSE` finding has to be acknowledged, one toggle per reason, before signing. A `HOLD` never produces a transaction to sign.
 4. **Sign.** Preflight derives the signature before it broadcasts and takes a lock on the order, so a retry cannot buy twice. It records the verdict, then sends the transaction through Jupiter.
