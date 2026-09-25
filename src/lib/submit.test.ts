@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Keypair, SystemProgram, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
@@ -129,6 +129,24 @@ describe("submitSignedOrder", () => {
     execute.mockResolvedValueOnce({ ...SUCCESS, signature });
     expect(await submitSignedOrder(orderId, `${signed}==trailing`, [])).toMatchObject({ ok: true });
     expect(execute.mock.calls[0][0]).toBe(signed);
+  });
+
+  it("sends nothing, answers NOT_SENT and leaves the order retryable when the pending receipt cannot be written", async () => {
+    const { orderId, signed, signature } = await storedOrder();
+    writeFileSync(path.join(process.env.PREFLIGHT_DATA_DIR!, "receipts"), "a file where the receipts directory should be");
+    await expect(submitSignedOrder(orderId, signed, [])).rejects.toThrow();
+    expect(execute).not.toHaveBeenCalled();
+
+    const { POST } = await import("@/app/api/submit/route");
+    const res = await POST(new Request("https://preflight.test/api/submit", { method: "POST", body: JSON.stringify({ orderId, signedTransaction: signed, ackedReasons: [] }) }));
+    expect(res.status).toBe(500);
+    expect(await res.json()).toMatchObject({ ok: false, code: "NOT_SENT" });
+    expect(execute).not.toHaveBeenCalled();
+
+    rmSync(path.join(process.env.PREFLIGHT_DATA_DIR!, "receipts"));
+    execute.mockResolvedValueOnce({ ...SUCCESS, signature });
+    expect(await submitSignedOrder(orderId, signed, [])).toMatchObject({ ok: true, signature });
+    expect(execute).toHaveBeenCalledTimes(1);
   });
 
   it("keeps submission locks out of the order namespace", async () => {

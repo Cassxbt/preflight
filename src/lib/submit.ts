@@ -53,13 +53,9 @@ export async function submitSignedOrder(orderId: string, signedTxBase64: string,
   }
 
   // The signature is fixed by the signed bytes, so it is known before anything is broadcast.
-  // Recording it first means every later failure still leaves a receipt that can be reconciled on chain.
+  // The receipt is written before the lock, so a lock never exists without a receipt to reconcile it on chain;
+  // a failed write leaves neither, nothing sent, and a clean retry.
   const signature = bs58.encode(payerSig);
-  if (!(await create("locks", orderId, JSON.stringify({ signature, at: new Date().toISOString() })))) {
-    // Only a parallel submit of this same order can hold the lock, and it signed these same bytes.
-    return { ok: false, code: "ALREADY_SUBMITTED", error: "This order was already submitted. Check its receipt before buying again.", signature };
-  }
-
   const record = {
     schema: "preflight.receipt.v1",
     orderId,
@@ -69,7 +65,11 @@ export async function submitSignedOrder(orderId: string, signedTxBase64: string,
     order: { ...order, unsignedTx: undefined, messageBase64: undefined },
     execute: null as ExecuteResult | null,
   };
-  await put("receipts", signature, canonicalJson(record));
+  // A parallel submit signed these same bytes, so an existing receipt is this one and must not be overwritten.
+  await create("receipts", signature, canonicalJson(record));
+  if (!(await create("locks", orderId, JSON.stringify({ signature, at: new Date().toISOString() })))) {
+    return { ok: false, code: "ALREADY_SUBMITTED", error: "This order was already submitted. Check its receipt before buying again.", signature };
+  }
 
   let execute: ExecuteResult;
   try {
