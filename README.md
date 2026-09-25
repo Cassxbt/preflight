@@ -36,11 +36,11 @@ A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits betwee
 
 ## The problem
 
-PreStocks told every XAI holder to swap into SpaceX before 23:59 UTC on 12 September 2026, or the token would **expire worthless**. Twelve days later, Jupiter still routed USDC into XAI through Meteora pools holding over $280,000. Nothing in the mint account or the swap quote carries that deadline. It lives on the issuer's web page.
+The PreStocks XAI page says each token had to be swapped into SpaceX before 23:59 UTC on 12 September 2026, or it would **expire worthless**. On 24 September, twelve days later, Jupiter still routed USDC into XAI through Meteora pools holding over $280,000. Nothing in the mint account or the swap quote carries that deadline. It lives on the issuer's web page.
 
 It is not the only thing a swap UI leaves out. PreStocks tokens are Token-2022 mints with a 1% transfer fee, a display multiplier and a pause switch. The issuer publishes a mark that the listed price can sit far above: OPENAI was 32.8% above it on 24 September. Lookalike mints copy the tickers.
 
-Every one of these facts is public, but they are spread across four places: the PreStocks catalog, the issuer's pages, the mint account and the Jupiter route. Preflight reads all four before you sign, and it will not hand you a transaction while any of them says stop.
+Every one of these facts is public, but they are spread across four places: the PreStocks catalog, the issuer's pages, the mint account and the Jupiter route. Preflight reads all four before you sign, and it will not hand you a transaction while the catalog, the mint, the route or a reviewed issuer deadline says stop.
 
 ## How it works
 
@@ -138,7 +138,7 @@ The first route prepared for this purchase expired before it could be sent, and 
 
 To check it on the explorer, read the balance changes: 1 USDC out of the wallet and 0.00835368 SPACEX in. 1 ÷ 0.00835368 = $119.71 per token. Work the price out from these raw balance changes rather than from an explorer's dollar label. The receipt JSON and the prepared order are archived in [`proof/`](proof).
 
-**The first deployed-app purchase**, on 24 September, is [`3mgVKNBX…HvVSDprT`](https://preflight-weld.vercel.app/r/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT) (slot 450,101,221): 1 USDC into 0.00846303 SPACEX through a DFlow route, exactly the expected credit, with `ISSUER_DEADLINE` and `HIGH_NETWORK_COST` acknowledged. It spent 0.001621 SOL rent opening the wallet's SPACEX token account. Its route passed through an XAI pool as an intermediate hop inside the same transaction; the wallet never held XAI. An order prepared under a minute before it expired while the wallet was still asking for approval, and the server refused its signature as too close to the 12-block safety margin, so nothing was sent.
+**The first deployed-app purchase**, on 24 September, is [`3mgVKNBX…HvVSDprT`](https://preflight-weld.vercel.app/r/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT) (slot 450,101,221): 1 USDC into 0.00846303 SPACEX through a DFlow route, exactly the expected credit, with `ISSUER_DEADLINE` and `HIGH_NETWORK_COST` acknowledged. It spent 0.001621 SOL rent opening the wallet's SPACEX token account. Its route passed through an XAI pool as an intermediate hop, using a temporary XAI account that the same transaction opened and closed; the wallet ended with no XAI. Before it, an order prepared under a minute earlier expired while the wallet was still asking for approval; its signature arrived inside the 12-block safety margin, so the server refused it and nothing was sent.
 
 **Earlier purchase.** The first mainnet buy, [`5XcWu1fa…jwPqwXPV`](https://preflight-weld.vercel.app/r/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV), was 2 USDC into ANTHROPIC through Preflight running locally, before the Vercel deploy. Its receipt record was copied into production storage, and it predates acknowledgement logging. One attempt before it expired because its signing window came from a fixed timer rather than the chain. That failure led to the chain-derived signing window described under [Engineering decisions](#engineering-decisions).
 
@@ -182,7 +182,7 @@ A check that could not run is listed under `notEvaluated`. It never counts as a 
 ## What it does for PreStocks
 
 - **Buyers reach the exact catalog mint.** On 22 September we counted about 40 impostor "Anthropic PreStocks" and "SpaceX PreStocks" mints on Solana. Preflight accepts only the mint in the live PreStocks catalog, so a lookalike never gets an order.
-- **The issuer's terms reach the buyer at the moment of purchase.** PreStocks publishes deadlines and lockups on its token pages. Preflight quotes them in PreStocks' own words, with the page link and a capture hash, next to the price. A swap UI shows nothing there.
+- **The issuer's terms reach the buyer at the moment of purchase.** PreStocks publishes conversion deadlines and notices on its token pages. Preflight quotes them in PreStocks' own words, with the page link and a capture hash, next to the price. A swap UI shows nothing there.
 - **A premium is shown against PreStocks' own mark.** `ABOVE_MARK` is a disclosure, not a hold. The buyer still buys, after seeing the issuer's reference price.
 - **Any wallet, bot or front end can run the same check.** `GET /api/check?mint=…` returns the verdict and its reasons as JSON, with no wallet and no key, rate-limited per IP. A PreStocks buy flow anywhere could call it before building a transaction.
 
