@@ -6,7 +6,7 @@ Archived evidence for the claims in the main README. Nothing here is secret: wal
 |---|---|
 | `2026-09-24_spacex_prepared_order.json` | The order Preflight stored before the wallet signed: verdict, reasons, expected and minimum credit, and the exact transaction message (`messageBase64`). |
 | `2026-09-24_spacex_receipt.json` | The receipt served at `/api/receipt/3mgVKNBX…HvVSDprT`: chain facts, the recorded verdict and its hash, and the acknowledged reasons. |
-| `2026-09-25_spacex_prepared_order.json` | The second deployed-app purchase (25 Sep, filmed for the demo): the order stored before signing, including `messageBase64`. |
+| `2026-09-25_spacex_prepared_order.json` | The deployed-app purchase filmed for the demo (25 Sep): the order stored before signing, including `messageBase64`. |
 | `2026-09-25_spacex_receipt.json` | Its receipt: `XRSbAUw2…Prft1jcxq`, 1 USDC → 0.00835368 SPACEX, exactly the expected credit, `ISSUER_DEADLINE` acknowledged. |
 | `2026-09-24_anthropic_local_receipt.json` | The earlier purchase, made on Preflight running locally before the deploy. |
 | `2026-09-25_xai_jupiter_quote.json` | Jupiter's public quote API routing USDC into the expired XAI mint, with the time it was retrieved. |

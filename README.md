@@ -9,11 +9,11 @@ A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits betwee
 [![tests](https://img.shields.io/badge/tests-138%20passing-3fb950)](#tests)
 [![PreStocks](https://img.shields.io/badge/PreStocks-catalog%20%2B%20issuer%20pages-111)](https://prestocks.com)
 [![Jupiter](https://img.shields.io/badge/Jupiter-Swap%20V2%20Meta-111)](https://dev.jup.ag)
-[![Solana](https://img.shields.io/badge/Solana-mainnet-9945FF)](https://solscan.io/tx/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT)
+[![Solana](https://img.shields.io/badge/Solana-mainnet-9945FF)](https://solscan.io/tx/XRSbAUw22ZtxEJRzkYzg5CsA4Y2zk68BezwQMYwJ83DgJP3qpnsczfmNa7AFrFFVdDRGGKFwejTxKDPrft1jcxq)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000)](https://nextjs.org)
 [![License: MIT](https://img.shields.io/badge/license-MIT-111)](LICENSE)
 
-[Live app](https://preflight-weld.vercel.app/app) · [Judge it in 90 seconds](#verify-it-yourself) · [Mainnet receipt](https://preflight-weld.vercel.app/r/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT)
+[Live app](https://preflight-weld.vercel.app/app) · [Judge it in 90 seconds](#verify-it-yourself) · [Mainnet receipt](https://preflight-weld.vercel.app/r/XRSbAUw22ZtxEJRzkYzg5CsA4Y2zk68BezwQMYwJ83DgJP3qpnsczfmNa7AFrFFVdDRGGKFwejTxKDPrft1jcxq)
 
 </div>
 
@@ -108,7 +108,7 @@ curl -s "https://preflight-weld.vercel.app/api/check?mint=PreYKD2kJ5xGgoZ644VPfb
 **The verdict on a real purchase matches the hash recorded when the order was prepared.** The hash is SHA-256 over the verdict object, serialized with sorted keys. You can recompute it:
 
 ```bash
-curl -s https://preflight-weld.vercel.app/api/receipt/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT > r.json
+curl -s https://preflight-weld.vercel.app/api/receipt/XRSbAUw22ZtxEJRzkYzg5CsA4Y2zk68BezwQMYwJ83DgJP3qpnsczfmNa7AFrFFVdDRGGKFwejTxKDPrft1jcxq > r.json
 node -e 'const r=require("./r.json");const s=v=>Array.isArray(v)?"["+v.map(s)+"]":v&&typeof v=="object"?"{"+Object.keys(v).sort().map(k=>JSON.stringify(k)+":"+s(v[k]))+"}":JSON.stringify(v);console.log(require("crypto").createHash("sha256").update(s(r.appRecorded.verdict)).digest("hex")===r.appRecorded.verdictHash)'
 # true
 ```
@@ -124,22 +124,24 @@ shasum -a 256 src/data/captures/2026-09-23_xai.html
 
 ## Mainnet proof
 
-This purchase was made on 24 September 2026 through the deployed app at preflight-weld.vercel.app, with a real wallet:
+This is the purchase in the demo video, made on 25 September 2026 through the deployed app at preflight-weld.vercel.app, with a real wallet:
 
 | | |
 |---|---|
-| Transaction | [`3mgVKNBX…HvVSDprT`](https://solscan.io/tx/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT), slot 450,101,221, finalized |
-| Order | 1 USDC into SPACEX through Jupiter (DFlow route) |
-| Verdict at signing | `DISCLOSE` · `ISSUER_DEADLINE` (the issuer's 12 March 2027 conversion deadline) and `HIGH_NETWORK_COST` |
-| Acknowledged | Both reasons, toggled in the app, required by the server and recorded before broadcast (client-reported, not signed by the wallet) |
-| Credited on chain | 0.00846303 SPACEX, exactly the expected amount and above the 0.00829377 minimum Jupiter reported for the route |
-| Price paid | $118.16 per token, 20.1% below the issuer mark of $147.97 |
-| Wallet SOL spent | 0.001626 SOL: 0.000005 network fee, and 0.001621 SOL rent for the wallet's new SPACEX token account, which comes back if that account is closed |
-| Receipt | [preflight-weld.vercel.app/r/3mgVKNBX…HvVSDprT](https://preflight-weld.vercel.app/r/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT) |
+| Transaction | [`XRSbAUw2…Prft1jcxq`](https://solscan.io/tx/XRSbAUw22ZtxEJRzkYzg5CsA4Y2zk68BezwQMYwJ83DgJP3qpnsczfmNa7AFrFFVdDRGGKFwejTxKDPrft1jcxq), slot 450,330,796, finalized |
+| Order | 1 USDC into SPACEX through Jupiter (Metis route, Meteora SPACEX-USDC pool) |
+| Verdict at signing | `DISCLOSE` · `ISSUER_DEADLINE` (the issuer's 12 March 2027 conversion deadline) |
+| Acknowledged | `ISSUER_DEADLINE`, toggled in the app, required by the server and recorded before broadcast (client-reported, not signed by the wallet) |
+| Credited on chain | 0.00835368 SPACEX, exactly the expected amount and above the 0.00818661 minimum Jupiter reported for the route |
+| Price paid | $119.71 per token, 19.9% below the issuer mark of $149.37. Of the 1 USDC, 0.001 went to Jupiter's fee account and 0.999 to the pool; the price includes it. |
+| Wallet SOL spent | 0.000005472 SOL network fee. The wallet already had a SPACEX token account, so no rent. |
+| Receipt | [preflight-weld.vercel.app/r/XRSbAUw2…Prft1jcxq](https://preflight-weld.vercel.app/r/XRSbAUw22ZtxEJRzkYzg5CsA4Y2zk68BezwQMYwJ83DgJP3qpnsczfmNa7AFrFFVdDRGGKFwejTxKDPrft1jcxq) |
 
-Before this, an order prepared under a minute earlier expired while the wallet was still asking for approval. Its signature reached the server with about four seconds left on the app's countdown, inside the 12-block safety margin, so the server refused it as too close to land and nothing was sent. A newly prepared order was then signed, and that is the transaction above.
+The first route prepared for this purchase expired before it could be sent, and nothing was sent. A newly prepared order was then signed, and that is the transaction above.
 
-To check it on the explorer, read the balance changes: 1 USDC out of the wallet and 0.00846303 SPACEX in. 1 ÷ 0.00846303 = $118.16 per token. Work the price out from these raw balance changes rather than from an explorer's dollar label. The route passed through an XAI pool as an intermediate hop inside the same transaction; the wallet never held XAI. The receipt JSON and the prepared order are archived in [`proof/`](proof).
+To check it on the explorer, read the balance changes: 1 USDC out of the wallet and 0.00835368 SPACEX in. 1 ÷ 0.00835368 = $119.71 per token. Work the price out from these raw balance changes rather than from an explorer's dollar label. The receipt JSON and the prepared order are archived in [`proof/`](proof).
+
+**The first deployed-app purchase**, on 24 September, is [`3mgVKNBX…HvVSDprT`](https://preflight-weld.vercel.app/r/3mgVKNBXReMXYzqAgwDcG2rTscGPct6o5cwCERb9jzj7p7BHmoWMvzxgaNMoWkN6LcT5RJ9UqcCfqvGUHvVSDprT) (slot 450,101,221): 1 USDC into 0.00846303 SPACEX through a DFlow route, exactly the expected credit, with `ISSUER_DEADLINE` and `HIGH_NETWORK_COST` acknowledged. It spent 0.001621 SOL rent opening the wallet's SPACEX token account. Its route passed through an XAI pool as an intermediate hop inside the same transaction; the wallet never held XAI. An order prepared under a minute before it expired while the wallet was still asking for approval, and the server refused its signature as too close to the 12-block safety margin, so nothing was sent.
 
 **Earlier purchase.** The first mainnet buy, [`5XcWu1fa…jwPqwXPV`](https://preflight-weld.vercel.app/r/5XcWu1fa7tvQqDHuVynJ4rNbpnFBHgtTHHhz1wXnim1C3xvVfoBjVYLVKJNu8HQsgtiWrSurLPZWeUcrjwPqwXPV), was 2 USDC into ANTHROPIC through Preflight running locally, before the Vercel deploy. Its receipt record was copied into production storage, and it predates acknowledgement logging. One attempt before it expired because its signing window came from a fixed timer rather than the chain. That failure led to the chain-derived signing window described under [Engineering decisions](#engineering-decisions).
 
