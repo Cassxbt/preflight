@@ -27,6 +27,7 @@ A pre-trade check for PreStocks pre-IPO tokens on Solana mainnet. It sits betwee
 - [Mainnet proof](#mainnet-proof)
 - [What it checks](#what-it-checks)
 - [Built on PreStocks and Jupiter](#built-on-prestocks-and-jupiter)
+- [What it does for PreStocks](#what-it-does-for-prestocks)
 - [Architecture](#architecture)
 - [Engineering decisions](#engineering-decisions)
 - [What it does not do](#what-it-does-not-do)
@@ -181,6 +182,13 @@ A check that could not run is listed under `notEvaluated`. It never counts as a 
 | GeckoTerminal | Live prices, pool flow and charts in the UI. The verdict never uses it. | [`src/lib/market.ts`](src/lib/market.ts) |
 
 **Remove any one of the gate's sources and Preflight breaks.** GeckoTerminal is the exception, because it only feeds the UI. Without the catalog there is no mark to price against. Without the issuer pages, a SPACEX buyer gets no warning about the March 2027 deadline, and the XAI hold loses its reason. Without the mint state, a paused token or a raw-unit price slips through. Without Jupiter's order there is no fill to judge and no transaction to sign.
+
+## What it does for PreStocks
+
+- **Buyers reach the exact catalog mint.** On 22 September we counted about 40 impostor "Anthropic PreStocks" and "SpaceX PreStocks" mints on Solana. Preflight accepts only the mint in the live PreStocks catalog, so a lookalike never gets an order.
+- **The issuer's terms reach the buyer at the moment of purchase.** PreStocks publishes deadlines and lockups on its token pages. Preflight quotes them in PreStocks' own words, with the page link and a capture hash, next to the price. A swap UI shows nothing there.
+- **A premium is shown against PreStocks' own mark.** `ABOVE_MARK` is a disclosure, not a hold. The buyer still buys, after seeing the issuer's reference price.
+- **Any wallet, bot or front end can run the same check.** `GET /api/check?mint=…` returns the verdict and its reasons as JSON, with no wallet and no key, rate-limited per IP. A PreStocks buy flow anywhere could call it before building a transaction.
 
 ## Architecture
 
